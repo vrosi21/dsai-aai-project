@@ -17,25 +17,18 @@ SQLite                          catalog/models/    (a cache of the files)
         |
         |  catalog/     urls.py -> views/ -> templates/
         v
-HTML page  +  static/js (Alpine)  +  progress: a copy in the browser,
-                                     kept in step with progress/ on the server
+HTML page  +  static/js (Alpine)  +  localStorage (progress)
 ```
 
-Four Django **apps** of our own, listed in `INSTALLED_APPS` in
-[config/settings.py](../config/settings.py):
+Two Django **apps**, listed in `INSTALLED_APPS` in [config/settings.py](../config/settings.py):
 
-- **`catalog`** owns the course tables and every page.
+- **`catalog`** owns the database tables and every page.
 - **`ingest`** owns no tables. It turns files into `catalog` rows and provides the
   management commands.
-- **`progress`** owns what a signed-in person has done, and the one endpoint that saves it.
-- **`accounts`** is the little that is ours around signing in. The sign-in itself is
-  django-allauth's.
 
-The split between files and database is the main design decision: content is written as
-files (so an AI can author it and a human can read a diff), but served from a database (so
-pages are simple queries). The `catalog` tables can be emptied at any time; `migrate` and
-`sync_content` rebuild them. The `progress` and user tables cannot: they are the only
-data here that does not come from a file.
+The split is the main design decision: content is written as files (so an AI can author it
+and a human can read a diff), but served from a database (so pages are simple queries).
+The database can be deleted at any time; `migrate` and `sync_content` rebuild it.
 
 ## A request, start to finish
 
@@ -164,23 +157,13 @@ No bundler and no npm project. Third-party files are fetched once by
 [tools/vendor_assets.py](../tools/vendor_assets.py) (pinned versions, integrity checked) and
 committed under `static/vendor/`, `static/fonts/` and `static/icons.svg`.
 
-**The logo** (a D whose inside is a keyhole) is one SVG path in
-[tools/make_icons.py](../tools/make_icons.py). That script writes the tab icon and the
-bitmap sizes into `static/brand/`, and the bare glyph into
-[templates/components/logo.html](../templates/components/logo.html), which the page frame
-includes so the mark takes the page's own colour. Change the shape there and re-run it;
-do not edit its outputs.
-
 **JavaScript** ([static/js/](../static/js/)) is plain ES modules.
 [app.js](../static/js/app.js) registers everything with Alpine and starts it.
 
-- `store/progress.js` is the only code that reads or writes progress, and the only code
-  that talks to the server about it ([Accounts and progress](#accounts-and-progress)).
-  It holds `records` (keyed `<course>/<id>`: `{s, t, k, n}`), `attempts`, `activity` and
-  `clears` in one localStorage key per account.
-- `lib/overview.js` turns a course's manifest and that store into one set of numbers:
-  how much of the reading, the cards and the problems is solid, shaky or missed. The
-  dashboard's bars and the course page's tiles both come from it.
+- `store/progress.js` is the only code that reads or writes progress. One localStorage key,
+  `dsai:v1`, holding `records` (keyed `<course>/<id>`: `{s, t, k, n}`), `attempts`,
+  `activity`. Every record has a timestamp and cleared grades leave a tombstone, so two
+  copies merge by "newest wins". Import does that today; a server sync would do the same.
 - `store/timer.js` is the focus timer. It stores when the block *ends*, so it survives
   navigation and reloads.
 - `components/` has one module per interactive piece: `flashcards`, `paper`, `palace`,
@@ -215,65 +198,6 @@ A pastel take on Material 3.
 - Icons are Material Symbols in one sprite; add a name to `ICONS` in
   `tools/vendor_assets.py` and re-run it.
 
-## Accounts and progress
-
-**Signing in.** `LoginRequiredMiddleware` (in `MIDDLEWARE`, [config/settings.py](../config/settings.py))
-turns the usual rule round: every view needs a signed-in person unless it says otherwise
-with `@login_not_required`. Three things say otherwise: `catalog.views.home`, which shows
-the landing page to a visitor and the dashboard to anyone signed in; django-allauth's own
-views; and the progress endpoint, which must answer a script with `401`, not with a
-redirect to a web page. An anonymous request anywhere else is sent to `LOGIN_URL` (the
-landing page) with `?next=` remembering where it was going.
-
-[django-allauth](https://docs.allauth.org/) does the OAuth exchange with Google and creates
-the Django user on first sign-in (`SOCIALACCOUNT_ONLY`: there are no passwords). Its URLs
-are mounted under `/accounts/` in [config/urls.py](../config/urls.py). The few pages it
-renders itself use [templates/allauth/layouts/base.html](../templates/allauth/layouts/base.html):
-a template placed at the same path as one inside a package overrides it, because
-`TEMPLATES["DIRS"]` is searched first.
-
-The user model is Django's own `auth.User`, referred to as `settings.AUTH_USER_MODEL`.
-Anything more we need to know about a person goes in a table with a foreign key to it, as
-`progress` does.
-
-In DEBUG the landing page also offers a development sign-in
-([accounts/views.py](../accounts/views.py)), so working locally needs no Google client.
-
-**Progress.** The browser's copy is what pages read and write, so nothing waits for the
-network and studying works offline. [static/js/store/progress.js](../static/js/store/progress.js)
-remembers which entries the server has not seen (`dirty`) and the number the server gave
-it last time (`cursor`). A few seconds after a change, on arriving at a page, and when the
-tab is hidden, it POSTs the dirty entries and the cursor to `/api/progress/sync/`.
-
-[progress/sync.py](../progress/sync.py) folds them in inside one transaction and answers
-with every row whose `version` is above that cursor, from any device, plus the new cursor.
-Each person has a counter ([progress/models.py](../progress/models.py), `Ledger`); every row
-changed by a request is stamped with the counter's next value. That makes "what is new
-since I last asked" one indexed query.
-
-Both sides apply the same rules, so the order of events never matters:
-
-| | Rule |
-|---|---|
-| records | the copy graded later wins (`t`, the grading device's clock) |
-| attempts | kept if that sitting is not already known |
-| activity | per day, the larger count wins |
-| clears | "forget everything before this moment", per course or for all; the later moment wins and older rows are dropped |
-
-A clear is how "Clear progress" in Settings reaches a phone that still holds the old
-grades: deleting rows would not, the phone would send them straight back.
-
-The endpoint is a plain view returning `JsonResponse`, protected like any form post: the
-session cookie says who, and the CSRF token (printed into `<html data-csrf>`, sent as the
-`X-CSRFToken` header) says the request came from our own page. The payload is checked
-entry by entry with Pydantic; a malformed entry is skipped, never the whole request.
-
-**What can be marked.** Cards, questions, palace stops and formula-sheet rows always had
-three grades. Documents now have them too: the reading page asks "Lost, Shaky or
-Confident" ([catalog/templates/catalog/document.html](../catalog/templates/catalog/document.html)),
-stored as the same record under the key `doc:<kind>:<slug>`. A plan phase stays a yes/no
-mark.
-
 ## Tests
 
 `manage.py test` runs Django's test runner.
@@ -286,14 +210,6 @@ mark.
   filtering; search; the source-file view cannot escape its folder; query counts.
 - [config/tests.py](../config/tests.py): the production settings refuse to start without
   a secret key and pass `check --deploy`.
-- [progress/tests/](../progress/tests/): the four merge rules, played as one or two
-  devices against `sync()`; the endpoint's 401, CSRF check and query count.
-- [accounts/tests/](../accounts/tests/): who is sent to the landing page, the sign-in flow
-  is reachable signed out, the development sign-in is closed outside DEBUG, deleting an
-  account takes its progress with it.
-
-A test that needs a signed-in person calls `self.client.force_login(user)`, which puts a
-session for that user into the test client without going through a sign-in page.
 
 `TestCase` wraps each test in a transaction that is rolled back. `SimpleTestCase` is for
 tests that need no database.
@@ -327,11 +243,11 @@ values; the block at the end of the file, `if not DEBUG:`, is everything that th
 
 ## Not built yet, and where it would go
 
-- **Limiting who may sign in** (faculty addresses only): an allauth adapter, described in
-  [DEPLOYMENT.md](DEPLOYMENT.md#who-may-sign-in).
-- **Marks on more things.** Glossary terms, hooks and formulas are graded only in their
-  cover-and-recall mode, and do not count towards a course's bar
-  ([static/js/lib/overview.js](../static/js/lib/overview.js) lists what does).
+- **Accounts and server-side progress.** A `progress` app with one table,
+  `Record(user, key, data, updated_at)`, mirroring the browser store, and one endpoint that
+  merges by timestamp. `store/progress.js` would call it after `flush()`. Sign-in with
+  faculty Google accounts is planned first: see
+  [DEPLOYMENT.md](DEPLOYMENT.md#next-signing-in-with-faculty-accounts).
 - **Content Security Policy.** Django's `ContentSecurityPolicyMiddleware`; Alpine then needs
   its CSP build.
 - **Files for download.** Source files are served only when `SERVE_SOURCE_FILES` is on

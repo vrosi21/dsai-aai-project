@@ -1,7 +1,5 @@
 from itertools import groupby
 
-from django.conf import settings
-from django.contrib.auth.decorators import login_not_required
 from django.core.paginator import Paginator
 from django.db.models import Q
 from django.shortcuts import render
@@ -10,47 +8,11 @@ from ..models import Card, Course, Document, Formula, Hook, Question, Term
 from ..nav import course_data
 
 
-def landing(request, courses):
-    """What a visitor sees before signing in: what the site is, and the way in."""
-    shown = [
-        c
-        for c in courses
-        if c.status == Course.Status.ACTIVE
-        and (c.counts["reading"] or c.counts["cards"] or c.counts["questions"])
-    ]
-    return render(
-        request,
-        "catalog/landing.html",
-        {
-            "courses": shown,
-            "totals": {
-                name: sum(c.counts[name] for c in shown)
-                for name in ("reading", "cards", "questions")
-            },
-            # Where they were heading; the sign-in sends them on afterwards.
-            "next": request.GET.get("next", ""),
-            "google": settings.GOOGLE_SIGN_IN,
-            "dev_login": settings.DEBUG,
-        },
-    )
-
-
-@login_not_required
-def privacy(request):
-    """What the site stores about a person. Public, so it can be read before signing in."""
-    return render(request, "catalog/privacy.html", {"contact": settings.CONTACT_EMAIL})
-
-
-# `/` is two pages at one address: the landing page for a visitor, the dashboard for
-# someone signed in. So the view itself must be reachable without a login, and decides.
-@login_not_required
 def home(request):
     courses = list(Course.objects.all())
     for course in courses:
         data = course_data(course)
         course.counts = data["counts"]
-    if settings.REQUIRE_LOGIN and not request.user.is_authenticated:
-        return landing(request, courses)
     active = [c for c in courses if c.status == Course.Status.ACTIVE]
     archived = [c for c in courses if c.status == Course.Status.ARCHIVED]
     active.sort(key=lambda c: (c.year or "",), reverse=True)

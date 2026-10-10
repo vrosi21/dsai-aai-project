@@ -2,8 +2,7 @@
 
 A study site for university courses. Course material is turned into notes, flashcards,
 problems and exam prep written as Markdown/YAML files; a Django app validates those files,
-loads them into SQLite and renders them. People sign in with Google; their study progress
-is saved to their account.
+loads them into SQLite and renders them. Study progress lives in the browser.
 
 ## Two kinds of session: decide which one you are in
 
@@ -33,10 +32,9 @@ The site also runs on a server, at https://dsai3.pages.dev.
 anything under `deploy/`, `edge/`, `.github/` or the `Dockerfile`.
 
 - **Nothing writes to the live database directly.** Not SQL, not the admin, not a copied
-  `db.sqlite3`. Course content changes in exactly one way: course files reach the server
-  and `sync_content` runs there. Accounts and progress change only by people using the
-  site. Locally the rule is the same, which is why a content session only ever writes
-  files.
+  `db.sqlite3`. Its content changes in exactly one way: course files reach the server and
+  `sync_content` runs there. Locally the rule is the same, which is why a content session
+  only ever writes files.
 - **Content goes live with `publish`**, which validates all courses, sends their files to
   the server, and prints the server's own sync report. A content session ends at a clean
   local `sync_content`; it runs `publish` only when the owner asks.
@@ -71,35 +69,25 @@ uv run ruff check . && uv run ruff format .           lint and format
 ```
 config/      Django project: settings, root URL config
 catalog/     the site: models, views, URLs, templates, template tags
-progress/    each person's grades and marks, and the endpoint the browser saves them to
-accounts/    the pieces around signing in that are ours (the rest is django-allauth)
 ingest/      files -> database: schemas, Markdown renderer, sync, management commands
 templates/   base page and shared fragments
 static/      CSS, JavaScript (no build step), vendored libraries, fonts, icons
 docs/        AUTHORING.md, ARCHITECTURE.md, DEPLOYMENT.md, content-types/, schemas/, example-course/
 courses/     course folders: NOT in git (raw material and written content)
-tools/       vendor_assets.py (fetch front-end libraries), make_icons.py (the logo, in
-             every size, into static/brand/), katex_check.cjs
+tools/       vendor_assets.py (fetch front-end libraries), katex_check.cjs
 deploy/      what the server runs: compose file, proxy config, deploy script, setup scripts
 edge/        the Cloudflare Pages function that forwards dsai3.pages.dev to the server
 Dockerfile   the production image; .github/workflows/ci.yml tests, builds and deploys it
 ```
 
-Locally, `db.sqlite3` and `media/` can be deleted: `migrate` plus `sync_content` rebuild
-the course content, and the only thing lost is the local test user. On the server the same
-file also holds real accounts and their progress, so there it is never deleted.
-To sign in locally press "Development sign-in" on the landing page.
+`db.sqlite3` and `media/` are derived from `courses/`; deleting them loses nothing that
+`migrate` plus `sync_content` cannot rebuild. The same holds on the server. Progress is in
+the browser, not the database.
 
 ## Facts worth knowing before changing things
 
-- Ids of cards, questions, formulas, terms and hooks are permanent, and so are the file
-  names of documents. Every person's progress, in their browser and on the server, is
-  keyed `<course>/<id>`. Never rename them in content, and never change how keys are built.
-- The database holds two kinds of table. `catalog_*` is a cache of the course files and may
-  be rebuilt at will. Users and `progress_*` exist nowhere else: never delete `db.sqlite3`
-  on the server, and write a migration for any change to those models.
-- Every view needs a signed-in person unless it is marked `@login_not_required`. A new page
-  is private by default; think before marking one public.
+- Ids of cards, questions, formulas, terms and hooks are permanent. Browser progress is keyed
+  `<course>/<id>`. Never rename them in content, and never change how keys are built.
 - Stored HTML is trusted because `ingest/markdown.py` renders with raw HTML disabled. Keep it
   that way, or templates using `|safe` become an injection risk.
 - `docs/example-course/` is both the reference for authors and the fixture for the tests.

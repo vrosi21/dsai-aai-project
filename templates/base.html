@@ -1,8 +1,6 @@
 {% load static ui %}<!doctype html>
 {# Every page extends this file and fills its blocks. --hue colours the whole page. #}
-{% comment %} data-user, data-sync and data-csrf tell static/js/store/progress.js whose progress this
-   is and where to save it. They are absent for a visitor who is not signed in. {% endcomment %}
-<html lang="en" style="--hue: {{ hue|default:255 }}" data-icons="{% static 'icons.svg' %}" data-course="{{ course.slug|default:'' }}"{% if user.is_authenticated %} data-user="{{ user.pk }}" data-sync="{% url 'progress:sync' %}" data-csrf="{{ csrf_token }}"{% endif %}>
+<html lang="en" style="--hue: {{ hue|default:255 }}" data-icons="{% static 'icons.svg' %}" data-course="{{ course.slug|default:'' }}">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -18,7 +16,7 @@
   <link rel="stylesheet" href="{% static 'css/components.css' %}">
   <link rel="stylesheet" href="{% static 'css/prose.css' %}">
   <link rel="stylesheet" href="{% static 'css/study.css' %}">
-  {% include "components/icons.html" %}
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='9' fill='%234b63c9'/%3E%3Cpath d='M9 22V10h5.2c3.4 0 5.8 2.4 5.8 6s-2.4 6-5.8 6z' fill='none' stroke='white' stroke-width='2.6'/%3E%3C/svg%3E">
 </head>
 <body>
 <a class="skip-link" href="#main">Skip to content</a>
@@ -26,7 +24,7 @@
 <div class="app" x-data="shell" :data-drawer="drawer ? 'open' : 'closed'" @keydown.window="onKey($event)" @keydown.escape.window="drawer = false">
   <nav class="rail" aria-label="Main">
     <a class="brand" href="{% url 'catalog:home' %}">
-      <span class="brand__mark" aria-hidden="true">{% include "components/logo.html" %}</span>
+      <span class="brand__mark" aria-hidden="true">dv</span>
       <span>DSAI<span class="brand__dot"> Vault</span></span>
     </a>
 
@@ -49,7 +47,7 @@
       <a class="nav-item" href="{% url 'catalog:settings' %}"{% if active == "settings" %} aria-current="page"{% endif %}>
         {% icon "settings" %}<span class="label">Settings</span>
       </a>
-      <p class="rail__saved" :data-state="$store.progress.saveState" x-text="$store.progress.saveLabel">Progress saved in this browser</p>
+      <p class="rail__saved" :data-state="$store.progress.persistent ? 'on' : 'off'" x-text="$store.progress.persistent ? 'Progress saved in this browser' : 'Storage blocked: progress is not saved'">Progress saved in this browser</p>
     </div>
   </nav>
   <div class="scrim" @click="drawer = false"></div>
@@ -71,7 +69,6 @@
         <span x-show="theme === 'light'" x-cloak>{% icon "light" %}</span>
         <span x-show="theme === 'dark'" x-cloak>{% icon "dark" %}</span>
       </button>
-      {% if user.is_authenticated %}{% include "components/account.html" %}{% endif %}
     </header>
 
     <main class="page" id="main">

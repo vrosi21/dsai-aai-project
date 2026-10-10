@@ -10,8 +10,8 @@
 {% block inner_class %}page__inner--narrow{% endblock %}
 
 {% block content %}
-{% comment %} One template for practice sets, past papers and mock exams. The questions are printed
-   here by Django; static/js/components/paper.js adds checking, the clock and marking. {% endcomment %}
+{# One template for practice sets, past papers and mock exams. The questions are printed
+   here by Django; static/js/components/paper.js adds checking, the clock and marking. #}
 <div class="paper" x-data="paper" :data-phase="phase">
   <header class="page-head">
     <p class="overline">{{ question_set.get_kind_display }}{% if assessment %} · {{ assessment.title }}{% endif %}{% if question_set.date %} · sat {{ question_set.date|date:"j M Y" }}{% endif %}</p>

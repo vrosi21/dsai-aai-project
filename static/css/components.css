@@ -349,17 +349,9 @@
     font-variant-numeric: tabular-nums;
     flex: none;
   }
-  .list-item__lead[data-state="solid"] {
+  .list-item__lead[data-done="true"] {
     background: var(--solid-container);
     color: var(--on-solid-container);
-  }
-  .list-item__lead[data-state="shaky"] {
-    background: var(--shaky-container);
-    color: var(--on-shaky-container);
-  }
-  .list-item__lead[data-state="missed"] {
-    background: var(--missed-container);
-    color: var(--on-missed-container);
   }
   .list-item__body {
     display: grid;

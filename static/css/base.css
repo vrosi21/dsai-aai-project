@@ -187,12 +187,6 @@
     font-size: var(--text-s);
     font-weight: 700;
   }
-  /* The logo's glyph, drawn in the mark's own text colour, so the mark follows the course
-     hue like everything else on the page. */
-  .brand__glyph {
-    width: 100%;
-    height: 100%;
-  }
   .brand__dot {
     color: var(--on-surface-faint);
     font-weight: 450;

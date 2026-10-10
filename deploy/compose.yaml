@@ -17,14 +17,6 @@ services:
       DJANGO_SECRET_KEY: ${DJANGO_SECRET_KEY:?missing in .env}
       DJANGO_ALLOWED_HOSTS: ${PUBLIC_HOST:?missing in .env}
       DJANGO_CSRF_TRUSTED_ORIGINS: https://${PUBLIC_HOST}
-      # Sign-in with Google. Empty until deploy/setup-google.sh has stored them; the site
-      # then shows its landing page and says that signing in is not set up.
-      GOOGLE_OAUTH_CLIENT_ID: ${GOOGLE_OAUTH_CLIENT_ID:-}
-      GOOGLE_OAUTH_CLIENT_SECRET: ${GOOGLE_OAUTH_CLIENT_SECRET:-}
-      # 0 would open every page to everyone and keep progress in the browser only.
-      DSAI_REQUIRE_LOGIN: ${DSAI_REQUIRE_LOGIN:-1}
-      # Optional: an address for questions, shown on the privacy page.
-      DSAI_CONTACT_EMAIL: ${DSAI_CONTACT_EMAIL:-}
     volumes:
       - data:/data # the database and the images copied from course content
       - ./courses:/courses:ro # course files, replaced by `deploy content`

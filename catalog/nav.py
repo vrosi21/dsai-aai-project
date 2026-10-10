@@ -43,8 +43,6 @@ def _build(course):
         "homework": len(by_kind.get("homework", [])),
         "guides": len(by_kind.get("guide", [])),
         "sheet": len(by_kind.get("sheet", [])),
-        # Everything with a rating at its foot: what the "Reading" share of progress counts.
-        "reading": sum(len(by_kind.get(kind, [])) for kind in Document.SECTIONS),
         "decks": len(decks),
         "cards": len(cards),
         "problem_sets": sum(1 for s in sets if s["kind"] == "practice"),

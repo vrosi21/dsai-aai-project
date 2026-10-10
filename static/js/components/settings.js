@@ -42,22 +42,15 @@ export default () => ({
     this.confirm = { title, body, run };
     this.$refs.confirm.showModal();
   },
-  get where() {
-    return this.$store.progress.account ? "your account and every device signed in to it" : "this browser";
-  },
   resetCourse(slug, title) {
-    this.ask(`Clear progress for ${title}?`, `Grades, ratings and attempts for this course are removed from ${this.where}. Export first if you want a copy.`, () =>
+    this.ask(`Clear progress for ${title}?`, "Grades, read marks and attempts for this course are removed from this browser. Export first if you want a copy.", () =>
       this.$store.progress.reset(slug),
     );
   },
   resetAll() {
-    this.ask("Clear all progress?", `Everything is removed from ${this.where}: grades, ratings, attempts and activity. Export first if you want a copy.`, () =>
+    this.ask("Clear all progress?", "Everything saved in this browser is removed: grades, read marks, attempts and activity. Export first if you want a copy.", () =>
       this.$store.progress.reset(),
     );
-  },
-  /** Before the account is deleted: drop this browser's copy, so nothing is left behind. */
-  forget() {
-    this.$store.progress.forgetLocal();
   },
   proceed() {
     this.confirm?.run();

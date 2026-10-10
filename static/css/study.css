@@ -159,18 +159,6 @@
     display: grid;
     gap: var(--s2);
   }
-  .course-card__progress {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0 var(--s3);
-    font-size: var(--text-s);
-    & strong {
-      font-weight: 650;
-    }
-    & span {
-      opacity: 0.75;
-    }
-  }
   .archived > summary {
     cursor: pointer;
     list-style: none;
@@ -239,66 +227,14 @@
     border-radius: var(--r-l);
     background: var(--surface-low);
     transition: background var(--dur-2) var(--ease);
-    &[data-state="solid"] {
+    &[data-read="true"] {
       background: var(--solid-container);
       color: var(--on-solid-container);
     }
-    &[data-state="shaky"] {
-      background: var(--shaky-container);
-      color: var(--on-shaky-container);
-    }
-    &[data-state="missed"] {
-      background: var(--missed-container);
-      color: var(--on-missed-container);
-    }
-    &:not([data-state=""]) .faint {
+    &[data-read="true"] .faint {
       color: inherit;
       opacity: 0.8;
     }
-  }
-  .read-box__text {
-    flex: 1 1 16rem;
-  }
-  /* Lost / Shaky / Confident: the three grades of a flashcard, as one control. */
-  .rate {
-    display: flex;
-    gap: var(--s2);
-  }
-  .rate__btn {
-    min-height: 2.5rem;
-    padding: 0 var(--s4);
-    border-radius: var(--r-full);
-    font-size: var(--text-s);
-    font-weight: 600;
-    transition:
-      box-shadow var(--dur-1) var(--ease),
-      transform var(--dur-1) var(--ease);
-    &:hover {
-      box-shadow: var(--shadow-1);
-    }
-    &:active {
-      transform: scale(0.97);
-    }
-    &[aria-pressed="true"] {
-      box-shadow: inset 0 0 0 2px currentColor;
-    }
-  }
-  .rate__btn--missed {
-    background: var(--missed-container);
-    color: var(--on-missed-container);
-  }
-  .rate__btn--shaky {
-    background: var(--shaky-container);
-    color: var(--on-shaky-container);
-  }
-  .rate__btn--solid {
-    background: var(--solid-container);
-    color: var(--on-solid-container);
-  }
-  /* On a rated box the buttons sit on their own colour: lift them onto the page tone. */
-  .read-box:not([data-state=""]) .rate__btn {
-    background: color-mix(in oklch, var(--surface-raised) 70%, transparent);
-    color: inherit;
   }
   .practice {
     display: grid;
@@ -656,43 +592,6 @@
     position: fixed;
     top: calc(var(--topbar) + 2px);
     right: var(--s4);
-  }
-  .avatar {
-    display: grid;
-    place-items: center;
-    flex: none;
-    width: 2.25rem;
-    height: 2.25rem;
-    border-radius: 50%;
-    background: var(--primary);
-    color: var(--on-primary);
-    font-size: var(--text-s);
-    font-weight: 700;
-    transition: box-shadow var(--dur-1) var(--ease);
-    &:hover {
-      box-shadow: 0 0 0 4px var(--state-hover);
-    }
-  }
-  .account-pop {
-    position: fixed;
-    top: calc(var(--topbar) + 2px);
-    right: var(--s4);
-    width: min(19rem, calc(100vw - 2rem));
-    & .rail__saved {
-      padding: 0;
-    }
-  }
-  .account-pop__name {
-    font-weight: 650;
-    font-size: var(--text-l);
-  }
-  /* The save indicator inside a card lines up with the text above it. */
-  .card > .rail__saved {
-    padding-left: 0;
-  }
-  .btn--danger {
-    background: var(--missed);
-    color: var(--surface-raised);
   }
   @media (max-width: 60rem) {
     .player__stage {

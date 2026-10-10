@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% load ui %}
-{% comment %} Shared by every page inside a course: swaps the rail for the course's own navigation
-   and adds the progress ring. `nav`, `manifest` and `active` come from load_course(). {% endcomment %}
+{# Shared by every page inside a course: swaps the rail for the course's own navigation
+   and adds the progress ring. `nav`, `manifest` and `active` come from load_course(). #}
 
 {% block rail %}
 <a class="nav-item" href="{% url 'catalog:home' %}">{% icon "back" %}<span class="label">All courses</span></a>

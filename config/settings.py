@@ -74,20 +74,9 @@ INSTALLED_APPS = [
     "django.contrib.sessions",
     "django.contrib.messages",
     "django.contrib.staticfiles",
-    # django-allauth: signing in with a Google account.
-    "allauth",
-    "allauth.account",
-    "allauth.socialaccount",
-    "allauth.socialaccount.providers.google",
     "catalog",
     "ingest",
-    "accounts",
-    "progress",
 ]
-
-# Everything is behind a sign-in unless a view opts out with @login_not_required (the
-# landing page and the sign-in flow itself do). Set DSAI_REQUIRE_LOGIN=0 for an open site.
-REQUIRE_LOGIN = env_flag("DSAI_REQUIRE_LOGIN", True)
 
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
@@ -95,13 +84,9 @@ MIDDLEWARE = [
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
-    # Sets request.user from the session cookie.
     "django.contrib.auth.middleware.AuthenticationMiddleware",
-    # Then, for an anonymous visitor, sends every view that did not opt out to LOGIN_URL.
-    *(["django.contrib.auth.middleware.LoginRequiredMiddleware"] if REQUIRE_LOGIN else []),
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
-    "allauth.account.middleware.AccountMiddleware",
 ]
 
 if USE_DEBUG_TOOLBAR:
@@ -151,47 +136,6 @@ DATABASES = {
             # so two writers queue up instead of one failing with "database is locked".
             "transaction_mode": "IMMEDIATE",
         },
-    }
-}
-
-
-# Accounts
-# People sign in with Google and nothing else, so the site never stores a password for
-# them. django-allauth runs the OAuth exchange and creates the Django user on first sign-in.
-
-AUTHENTICATION_BACKENDS = [
-    "django.contrib.auth.backends.ModelBackend",  # the admin's username and password
-    "allauth.account.auth_backends.AuthenticationBackend",
-]
-
-# The landing page is the sign-in page: an anonymous visitor to any address lands there,
-# with ?next= remembering where they were going.
-LOGIN_URL = "catalog:home"
-LOGIN_REDIRECT_URL = "catalog:home"
-ACCOUNT_LOGOUT_REDIRECT_URL = "catalog:home"
-SESSION_COOKIE_AGE = 60 * 60 * 24 * 60  # stay signed in for 60 days
-
-SOCIALACCOUNT_ONLY = True  # no local sign-up, no passwords, no e-mails to send
-ACCOUNT_EMAIL_VERIFICATION = "none"  # Google has already verified the address
-ACCOUNT_DEFAULT_HTTP_PROTOCOL = "http" if DEBUG else "https"
-
-# The OAuth client is created in Google Cloud Console (docs/DEPLOYMENT.md). Without it the
-# landing page says that sign-in is not set up, and in DEBUG offers a development sign-in.
-GOOGLE_OAUTH_CLIENT_ID = os.environ.get("GOOGLE_OAUTH_CLIENT_ID", "")
-GOOGLE_OAUTH_CLIENT_SECRET = os.environ.get("GOOGLE_OAUTH_CLIENT_SECRET", "")
-GOOGLE_SIGN_IN = bool(GOOGLE_OAUTH_CLIENT_ID and GOOGLE_OAUTH_CLIENT_SECRET)
-
-# Shown on the privacy page as the address for questions. Left out when empty.
-CONTACT_EMAIL = os.environ.get("DSAI_CONTACT_EMAIL", "")
-
-SOCIALACCOUNT_PROVIDERS = {
-    "google": {
-        "APPS": [{"client_id": GOOGLE_OAUTH_CLIENT_ID, "secret": GOOGLE_OAUTH_CLIENT_SECRET}]
-        if GOOGLE_SIGN_IN
-        else [],
-        "SCOPE": ["profile", "email"],
-        # Always show Google's account chooser, so a shared computer can switch person.
-        "AUTH_PARAMS": {"prompt": "select_account"},
     }
 }
 

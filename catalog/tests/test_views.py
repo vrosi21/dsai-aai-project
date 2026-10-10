@@ -4,7 +4,6 @@ tests exercise the real path: files -> importer -> models -> views -> templates.
 import os
 from datetime import timedelta
 
-from django.contrib.auth import get_user_model
 from django.test import override_settings
 from django.urls import reverse
 from django.utils import timezone
@@ -44,20 +43,11 @@ COURSE_PAGES = [
 ]
 
 
-def sign_in(test):
-    """Every page needs a signed-in person. force_login skips the sign-in form and puts
-    a session for this user straight into the test client."""
-    user = get_user_model().objects.create_user("reader", email="reader@example.test")
-    test.client.force_login(user)
-    return user
-
-
 class PageTests(CourseTestCase):
     def setUp(self):
         super().setUp()
         report = self.sync()
         self.assertEqual(report.status, "synced", msg=report.format())
-        self.user = sign_in(self)
 
     def get(self, name, *args, **query):
         # The test client calls the view directly: no server, no browser.
@@ -158,25 +148,12 @@ class PageTests(CourseTestCase):
         self.assertNotContains(response, "<script>alert(1)</script>")
 
     def test_page_queries_stay_bounded(self):
-        """A guard against N+1 queries: the count must not grow with the content.
-
-        Two of each are for the request itself: the session, then the signed-in user."""
+        """A guard against N+1 queries: the count must not grow with the content."""
         self.get("course", C)  # warm the per-course cache
-        with self.assertNumQueries(8):
+        with self.assertNumQueries(6):
             self.get("course", C)
-        with self.assertNumQueries(5):
+        with self.assertNumQueries(3):
             self.get("deck", C, "least-squares")
-
-    def test_home_is_the_dashboard_once_signed_in(self):
-        response = self.get("home")
-        self.assertTemplateUsed(response, "catalog/home.html")
-        # What the progress store in the browser needs to know whose data this is.
-        self.assertContains(response, f'data-user="{self.user.pk}"')
-        self.assertContains(response, 'data-sync="/api/progress/sync/"')
-
-    def test_course_counts_everything_that_can_be_rated(self):
-        counts = self.get("course", C).context["counts"]
-        self.assertEqual(counts["reading"], 5)  # 2 lectures, a lab, a homework, a guide
 
     @override_settings(DEBUG=True)
     def test_notice_when_files_are_newer_than_the_last_sync(self):
@@ -201,7 +178,6 @@ class SourceFileTests(CourseTestCase):
         (self.course / "source/lectures").mkdir(parents=True)
         (self.course / "source/lectures/L1.pdf").write_bytes(b"%PDF-1.4 test")
         self.sync()
-        sign_in(self)
 
     def url(self, path):
         return reverse("catalog:source", args=[C, path])

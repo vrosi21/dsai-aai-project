@@ -38,17 +38,15 @@
     <div class="prose">{{ doc.body_html|safe }}</div>
 
     <footer class="doc__foot no-print">
-      {# The same three honest grades as a flashcard, stored the same way. #}
-      <div class="read-box" :data-state="state">
-        <div class="read-box__text">
-          <strong x-text="title">How well do you know this?</strong>
-          <p class="faint" x-text="hint">Rate it honestly once you have read it. It feeds the course's progress bar.</p>
+      <div class="read-box" :data-read="read">
+        <div>
+          <strong x-text="read ? 'Marked as read' : 'Finished reading?'">Finished reading?</strong>
+          <p class="faint" x-text="read ? 'It counts towards this course on the dashboard.' : 'Mark it, then test yourself while it is fresh.'"></p>
         </div>
-        <div class="rate" role="group" aria-label="How well do you know this?">
-          <button class="rate__btn rate__btn--missed" type="button" :aria-pressed="s === 1" @click="rate(1)">Lost</button>
-          <button class="rate__btn rate__btn--shaky" type="button" :aria-pressed="s === 2" @click="rate(2)">Shaky</button>
-          <button class="rate__btn rate__btn--solid" type="button" :aria-pressed="s === 3" @click="rate(3)">Confident</button>
-        </div>
+        <button class="btn" :class="read ? 'btn--tonal' : 'btn--filled'" type="button" @click="toggle()">
+          <span x-show="!read">{% icon "check" %}</span>
+          <span x-text="read ? 'Mark unread' : 'Mark as read'">Mark as read</span>
+        </button>
       </div>
 
       {% if decks or problem_sets or assessments %}

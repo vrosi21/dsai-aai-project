@@ -8,10 +8,6 @@
 #   deploy content                   reads a .tar.gz of course files on standard input:
 #                                    validate them, then replace the live ones and load them
 #   deploy status | logs | restart   look at, or restart, what is running
-#   deploy setenv NAME               set one value in .env, read from standard input
-#   deploy backup                    copy the database to ~/dsai-vault/backups/
-#   deploy schedule-backup           do that every night (adds a line to the crontab)
-#   deploy restore <file>            replace the database with one of those copies
 #   deploy manage <args>             run manage.py inside the running container
 #   deploy ci                        the only thing the GitHub Actions key may run
 #
@@ -187,78 +183,6 @@ cmd_content() {
 	say "content is live"
 }
 
-cmd_setenv() {
-	# The value comes on standard input, so it never appears in a command line, in the
-	# shell history or in a log.
-	local name="${1:-}" value tmp
-	[[ "$name" =~ ^[A-Z][A-Z0-9_]*$ ]] || die "usage: deploy setenv NAME   (value on standard input)"
-	[[ -f "$ROOT/.env" ]] || die "run 'deploy install' first"
-	IFS= read -r value || true
-	[[ -n "$value" ]] || die "no value arrived on standard input"
-	tmp="$(mktemp "$ROOT/.env.XXXXXX")" # created readable by its owner only
-	grep -v "^$name=" "$ROOT/.env" >"$tmp" || true
-	printf '%s=%s\n' "$name" "$value" >>"$tmp"
-	mv "$tmp" "$ROOT/.env"
-	say "set $name in $ROOT/.env; 'deploy restart' applies it"
-}
-
-cmd_backup() {
-	# Accounts and progress exist only in the database, so it needs copies. SQLite's own
-	# backup gives a consistent file even while the site is in use. It is written next to
-	# the database by the Python inside the container, then copied out to the host.
-	local stamp name
-	stamp="$(date +%Y%m%d-%H%M%S)"
-	name="db-$stamp.sqlite3"
-	mkdir -p "$ROOT/backups"
-	chmod 700 "$ROOT/backups"
-	compose exec -T web python - <<'PY'
-import sqlite3
-
-source = sqlite3.connect("/data/db.sqlite3")
-target = sqlite3.connect("/data/backup.sqlite3")
-with target:
-    source.backup(target)
-target.close()
-source.close()
-PY
-	docker cp "$(compose ps --quiet web):/data/backup.sqlite3" "$ROOT/backups/$name"
-	compose exec -T web rm -f /data/backup.sqlite3
-	chmod 600 "$ROOT/backups/$name"
-	# Keep the newest fourteen.
-	ls -1t "$ROOT/backups"/db-*.sqlite3 | tail -n +15 | xargs --no-run-if-empty rm -f
-	say "saved $ROOT/backups/$name ($(du -h "$ROOT/backups/$name" | cut -f1))"
-}
-
-cmd_schedule_backup() {
-	# One line in this user's crontab: a backup every night. Safe to run twice.
-	local line="17 3 * * * $ROOT/bin/deploy backup >/dev/null 2>&1"
-	if crontab -l 2>/dev/null | grep -qF "$ROOT/bin/deploy backup"; then
-		say "the nightly backup is already scheduled"
-		return
-	fi
-	(
-		crontab -l 2>/dev/null || true
-		printf '%s\n' "$line"
-	) | crontab -
-	say "scheduled: a backup every night at 03:17, the newest fourteen kept in $ROOT/backups"
-}
-
-cmd_restore() {
-	local file="${1:-}"
-	[[ -f "$file" ]] || die "usage: deploy restore <backup file>"
-	lock
-	say "stopping the site"
-	compose stop web
-	say "putting $file in place"
-	# In a one-off container, as the app's own user so the file ends up owned by it. The
-	# old write-ahead files belong to the database being replaced and must go with it.
-	compose run --rm --no-deps -T web sh -c \
-		'rm -f /data/db.sqlite3-wal /data/db.sqlite3-shm && cat > /data/db.sqlite3' <"$file"
-	compose start web
-	wait_until_up
-	say "restored. Publish again if course content changed since that backup."
-}
-
 cmd_status() {
 	compose ps
 	printf '\nversion: %s\n' "$(docker image inspect dsai-vault:live --format '{{ index .Config.Labels "dsai.commit" }}' 2>/dev/null || echo 'nothing deployed')"
@@ -283,10 +207,6 @@ content) cmd_content ;;
 status) cmd_status ;;
 logs) compose logs --tail "${1:-100}" web proxy ;;
 restart) compose up --detach --force-recreate ;;
-setenv) cmd_setenv "$@" ;;
-backup) cmd_backup ;;
-schedule-backup) cmd_schedule_backup ;;
-restore) cmd_restore "$@" ;;
 manage) compose exec web python manage.py "$@" ;;
 ci) cmd_ci ;;
 *) die "unknown command '${command}'. See the top of $0 for the list." ;;

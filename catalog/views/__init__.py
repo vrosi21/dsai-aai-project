@@ -3,7 +3,7 @@
 from .course import course, topic
 from .documents import document, document_list
 from .exams import assessment, exams, paper
-from .home import home, privacy, search, settings_page
+from .home import home, search, settings_page
 from .memory import memory, palace
 from .practice import cards, deck, problem_set, problems, review
 from .reference import cheatsheet, formulas, glossary
@@ -24,7 +24,6 @@ __all__ = [
     "memory",
     "palace",
     "paper",
-    "privacy",
     "problem_set",
     "problems",
     "review",

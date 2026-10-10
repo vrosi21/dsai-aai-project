@@ -41,18 +41,16 @@
     <span class="label">cards due for review</span>
   </a>
   {% endif %}
-  {% if counts.reading %}
+  {% if counts.lectures %}
   <div class="stat">
-    <span class="value"><span x-text="reading.solid">0</span><small> / {{ counts.reading }}</small></span>
-    <span class="label">notes confident</span>
-    <div class="bar bar--thin"><i class="solid" :style="`width:${reading.pSolid}%`"></i><i class="shaky" :style="`width:${reading.pShaky}%`"></i><i class="missed" :style="`width:${reading.pMissed}%`"></i></div>
+    <span class="value"><span x-text="read">0</span><small> / {{ counts.lectures }}</small></span>
+    <span class="label">lectures read</span>
   </div>
   {% endif %}
   {% if counts.questions %}
   <div class="stat">
-    <span class="value"><span x-text="problems.solid">0</span><small> / {{ counts.questions }}</small></span>
-    <span class="label">problems solid</span>
-    <div class="bar bar--thin"><i class="solid" :style="`width:${problems.pSolid}%`"></i><i class="shaky" :style="`width:${problems.pShaky}%`"></i><i class="missed" :style="`width:${problems.pMissed}%`"></i></div>
+    <span class="value"><span x-text="questions">0</span><small> / {{ counts.questions }}</small></span>
+    <span class="label">questions worked</span>
   </div>
   {% endif %}
 </div>
@@ -71,7 +69,7 @@
     <div class="list">
       {% for doc in section.documents %}
       <a class="list-item" href="{{ doc.get_absolute_url }}">
-        <span class="list-item__lead" x-data="readMark('{{ doc.progress_key }}')" :data-state="state">{% if doc.number is not None %}{{ doc.number }}{% else %}{% icon section.kind %}{% endif %}</span>
+        <span class="list-item__lead" x-data="readMark('{{ doc.progress_key }}')" :data-done="read">{% if doc.number is not None %}{{ doc.number }}{% else %}{% icon section.kind %}{% endif %}</span>
         <span class="list-item__body"><strong>{{ doc.title }}</strong>{% if doc.summary %}<span>{{ doc.summary }}</span>{% endif %}</span>
         <span class="list-item__meta">{% if doc.due %}due {{ doc.due|date:"j M" }}{% elif doc.date %}{{ doc.date|date:"j M" }}{% endif %}</span>
       </a>

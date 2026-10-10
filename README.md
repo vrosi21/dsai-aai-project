@@ -4,7 +4,7 @@ One site for all your courses: lecture notes, labs, flashcards with honest gradi
 practice problems, exam prep (plans, past papers, timed mocks), formula sheets and memory
 aids. The content is plain Markdown and YAML written from your course material, usually by
 an AI agent following [docs/AUTHORING.md](docs/AUTHORING.md). Django validates and renders
-it. You sign in with Google, and your progress follows you between devices.
+it. Your progress stays in your browser.
 
 ## Run it
 
@@ -18,9 +18,8 @@ uv run python manage.py sync_content
 uv run python manage.py runserver
 ```
 
-Open http://127.0.0.1:8000 and press **Development sign-in** (offered only on your own
-machine; no Google client is needed locally). A small example course is included so there
-is something to click through.
+Open http://127.0.0.1:8000. A small example course is included so there is something to
+click through.
 
 To browse the database in Django's admin, create a login once:
 
@@ -59,16 +58,14 @@ courses/<course>/content/    Markdown + YAML                the only thing autho
 db.sqlite3                   Django models                  a cache, safe to delete
         |  views + templates
         v
-the site                     + each person's progress, saved to their account
+the site                     + progress in localStorage
 ```
 
 - `courses/` is not in git: it holds other people's material and your own notes. If you
   want history for the written content, run `git init` inside `courses/`.
 - `db.sqlite3` and `media/` are rebuilt from `courses/` by `migrate` and `sync_content`.
-- Progress (grades, ratings, exam attempts, activity) is saved to the signed-in person's
-  account. The browser keeps a working copy, so studying still works offline. Unlike the
-  course tables, the account and progress tables in `db.sqlite3` are not rebuilt from
-  anything.
+- Progress (grades, read marks, exam attempts, activity) is stored in the browser. Move it
+  between machines with Export and Import on the Settings page.
 
 ## Documentation
 

@@ -1,28 +1,27 @@
 {% load ui %}
-{% comment %} One course on the dashboard. `tone` + --hue gives the card the course's own colour.
-   The bar and the line under it are filled in by the browser from the signed-in person's
-   progress (courseCard in static/js/components/widgets.js). {% endcomment %}
+{# One course on the dashboard. `tone` + --hue gives the card the course's own colour. #}
 <a class="course-card tone" style="--hue: {{ c.hue }}" href="{{ c.get_absolute_url }}" x-data="courseCard('{{ c.slug }}')">
   <div class="course-card__top">
     <span class="course-card__code">{{ c.code }}</span>
     <span class="chip chip--primary" x-show="due > 0" x-cloak>{% icon "due" %}<span x-text="due + ' due'"></span></span>
   </div>
   <h3 class="course-card__title">{{ c.title }}</h3>
-  {% if c.counts.reading or c.counts.cards or c.counts.questions %}
+  {% if c.counts.lectures or c.counts.cards or c.counts.questions %}
   <p class="course-card__meta">
-    {% if c.counts.reading %}{{ c.counts.reading }} note{{ c.counts.reading|pluralize }}{% endif %}{% if c.counts.reading and c.counts.cards %} · {% endif %}{% if c.counts.cards %}{{ c.counts.cards }} card{{ c.counts.cards|pluralize }}{% endif %}{% if c.counts.questions %} · {{ c.counts.questions }} problem{{ c.counts.questions|pluralize }}{% endif %}
+    {% if c.counts.lectures %}{{ c.counts.lectures }} lecture{{ c.counts.lectures|pluralize }}{% endif %}{% if c.counts.lectures and c.counts.cards %} · {% endif %}{% if c.counts.cards %}{{ c.counts.cards }} card{{ c.counts.cards|pluralize }}{% endif %}{% if c.counts.questions %} · {{ c.counts.questions }} question{{ c.counts.questions|pluralize }}{% endif %}
   </p>
+  {% else %}
+  <p class="course-card__meta">No content yet</p>
+  {% endif %}
   <div class="course-card__foot">
+    {% if c.counts.cards %}
     <div class="bar" role="img" :aria-label="label">
       <i class="solid" :style="`width:${pct('solid')}%`"></i><i class="shaky" :style="`width:${pct('shaky')}%`"></i><i class="missed" :style="`width:${pct('missed')}%`"></i>
     </div>
-    <p class="course-card__progress"><strong x-text="headline">&nbsp;</strong><span x-text="detail"></span></p>
-  </div>
-  {% else %}
-  <p class="course-card__meta">No content yet</p>
-  <div class="course-card__foot">
+    <p class="faint"><span x-text="label">&nbsp;</span></p>
+    {% else %}
     <div class="bar"></div>
     <p class="faint">Add material to <code>source/</code>, then write content</p>
+    {% endif %}
   </div>
-  {% endif %}
 </a>

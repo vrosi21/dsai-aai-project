@@ -23,7 +23,6 @@ urlpatterns = [
     path("", views.home, name="home"),
     path("search/", views.search, name="search"),
     path("settings/", views.settings_page, name="settings"),
-    path("privacy/", views.privacy, name="privacy"),
     path("courses/<slug:course>/", views.course, name="course"),
     path("courses/<slug:course>/topics/<slug:key>/", views.topic, name="topic"),
     path("courses/<slug:course>/cards/", views.cards, name="cards"),

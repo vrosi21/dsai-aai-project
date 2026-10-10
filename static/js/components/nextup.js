@@ -45,28 +45,17 @@ function suggest(course, progress) {
     };
   }
 
-  // 3. The first lecture not rated yet, then the first one rated lost or shaky.
-  const lectures = course.docs.filter((doc) => doc.kind === "lecture");
-  const named = (doc) => (doc.number === null ? doc.title : `Lecture ${doc.number}: ${doc.title}`);
-  const unread = lectures.find((doc) => progress.status(course.slug, doc.key) === 0);
-  if (unread) {
+  // 3. The first lecture not yet marked as read.
+  const lecture = course.docs.find(
+    (doc) => doc.kind === "lecture" && progress.status(course.slug, doc.key) !== 3,
+  );
+  if (lecture) {
     return {
       weight: 30,
-      title: named(unread),
-      detail: "Not read yet. Read it, rate it, then run its deck while it is fresh.",
+      title: lecture.number === null ? lecture.title : `Lecture ${lecture.number}: ${lecture.title}`,
+      detail: "Not read yet. Read it, mark it, then run its deck while it is fresh.",
       action: "Start reading",
-      url: unread.url,
-    };
-  }
-  const weak = lectures.find((doc) => progress.status(course.slug, doc.key) < 3);
-  if (weak) {
-    const how = progress.status(course.slug, weak.key) === 1 ? "lost" : "shaky";
-    return {
-      weight: 25,
-      title: named(weak),
-      detail: `You marked it ${how}. Go through it once more, then rate it again.`,
-      action: "Read again",
-      url: weak.url,
+      url: lecture.url,
     };
   }
 

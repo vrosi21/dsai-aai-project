@@ -20,13 +20,9 @@ COPY pyproject.toml uv.lock ./
 RUN uv sync --frozen --no-dev
 
 COPY manage.py ./
-# Every app in INSTALLED_APPS has to be listed here: a new one that is forgotten fails the
-# build at collectstatic, which imports them all.
 COPY config config
 COPY catalog catalog
 COPY ingest ingest
-COPY progress progress
-COPY accounts accounts
 COPY templates templates
 COPY static static
 COPY deploy/smoke.py deploy/smoke.py

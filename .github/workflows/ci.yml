@@ -54,13 +54,10 @@ jobs:
         run: >
           docker run --rm -e DJANGO_SECRET_KEY -e DJANGO_ALLOWED_HOSTS dsai-vault:ci
           python manage.py check --deploy --fail-level WARNING
-      # Started as an open site (DSAI_REQUIRE_LOGIN=0) so that the course pages themselves
-      # are fetched, not a redirect to the sign-in.
       - name: Serve the example course from the image
         run: |
           docker run --detach --name web --read-only --tmpfs /tmp \
-            -e DJANGO_SECRET_KEY -e DJANGO_ALLOWED_HOSTS -e DSAI_SHOW_EXAMPLE=1 \
-            -e DSAI_REQUIRE_LOGIN=0 dsai-vault:ci
+            -e DJANGO_SECRET_KEY -e DJANGO_ALLOWED_HOSTS -e DSAI_SHOW_EXAMPLE=1 dsai-vault:ci
           docker exec web python manage.py migrate --noinput
           docker exec web python manage.py sync_content
           for attempt in $(seq 1 15); do
@@ -69,21 +66,6 @@ jobs:
           done
           docker logs web
           exit 1
-      # And as the server runs it: the landing page for a visitor, everything else closed.
-      - name: With sign-in required, a visitor gets the landing page only
-        run: |
-          docker run --detach --name closed --read-only --tmpfs /tmp \
-            -e DJANGO_SECRET_KEY -e DJANGO_ALLOWED_HOSTS dsai-vault:ci
-          docker exec closed python manage.py migrate --noinput
-          for attempt in $(seq 1 15); do
-            docker exec closed python deploy/smoke.py && break
-            sleep 2
-          done
-          docker exec closed python deploy/smoke.py
-          if docker exec closed python deploy/smoke.py /settings/; then
-            echo "/settings/ answered a visitor: the sign-in requirement is not working"
-            exit 1
-          fi
       - name: The proxy configuration is valid
         run: >
           docker run --rm -e ORIGIN_SECRET=ci -e PUBLIC_HOST=vault.test

@@ -51,49 +51,35 @@ Why it has this shape:
 | Application code | GitHub; on the server as the image `dsai-vault:live` | yes |
 | Course files (`course.yaml`, `content/`) | your computer, `courses/`; a copy on the server in `~/dsai-vault/courses/` | no |
 | Source material (`source/`: slides, past papers) | your computer only | no |
-| Database: course content | the server, Docker volume `dsai-vault_data` | no, it is rebuilt from the course files |
-| Database: accounts and study progress | the same file | no, and nothing rebuilds it: it is backed up |
+| Database | the server, Docker volume `dsai-vault_data` | no, it is rebuilt from the course files |
 | Images used by content | the same volume, under `media/` | no, copied by `sync_content` |
 | Secrets | the server's `~/dsai-vault/.env`; GitHub Actions secrets; Cloudflare Pages secrets | never |
-| A working copy of each person's progress | that person's browser | — |
+| Study progress | each visitor's own browser | — |
 
 ## The database
 
-The live database is one SQLite file inside a Docker volume. It holds two kinds of thing,
-and they could not be more different:
+The live database is a SQLite file inside a Docker volume. It holds exactly what the local
+one holds: a rendered copy of the course files, plus Django's own tables.
 
-| | Course content | People |
-|---|---|---|
-| Tables | `catalog_*` | `auth_user`, `socialaccount_*`, `progress_*`, sessions |
-| Written by | `manage.py sync_content`, from the course files | the site itself: a sign-in creates the person, [progress/sync.py](../progress/sync.py) stores what they did |
-| If lost | deploy and publish: it is all back | gone, unless there is a backup |
-
-**No person, AI session or script writes to it directly.** Course content gets in only as
-files that the server loads ([`publish`](#publishing-course-content)). People's rows get
-in only through people using the site. The admin is read-only for both.
+**Nothing writes to it directly: no person, no AI session, no script.** The only thing
+that changes its content is `manage.py sync_content` running on the server, reading the
+server's copy of the course files. So "putting data into the live database" always means
+*getting files to the server and letting it load them*, which is what
+[`publish`](#publishing-course-content) does. The admin is read-only for the same reason.
 
 Consequences:
 
 - A session that writes content needs no access to the server and no database password.
   The worst it can send is a bad file, and the server refuses those.
-- **The database must be backed up**, because accounts and progress exist nowhere else
-  (a browser holds a copy of its owner's progress, but that is not a backup).
-  `deploy backup` makes a consistent copy in `~/dsai-vault/backups/` and keeps the newest
-  fourteen. Have it run every night, once (it adds one line to the server user's crontab):
-  ```
-  ssh <server> dsai-vault/bin/deploy schedule-backup
-  ```
-  A copy on the same disk does not survive the disk, so fetch one to your computer now and
-  then: `scp <server>:dsai-vault/backups/<newest file> .`
-- Re-importing a course never touches anyone's progress. Progress rows name an item by the
-  course's slug and the item's id, not by a database key, which is one more reason ids
-  must never be renamed.
+- There is nothing to back up yet. If the volume is lost: deploy, publish, done
+  ([Rebuilding from nothing](#rebuilding-from-nothing)). What must not be lost is
+  `courses/` on your computer.
+- This changes the day accounts exist ([Next](#next-signing-in-with-faculty-accounts)):
+  from then on the database holds things that exist nowhere else and needs a backup.
 
-SQLite rather than PostgreSQL because it is one small site with few writers. It runs in
-WAL mode so pages stay readable while something writes
-([config/settings.py](../config/settings.py), `DATABASES`). The day many people study at
-the same minute and writes start to queue, PostgreSQL is a settings change plus a
-`dumpdata` / `loaddata` of the people tables; the content tables just get re-synced.
+SQLite rather than PostgreSQL because there is one small site, almost all reads, and the
+content is replaced wholesale by one writer. It runs in WAL mode so pages stay readable
+while a sync writes ([config/settings.py](../config/settings.py), `DATABASES`).
 
 ## Publishing course content
 
@@ -116,8 +102,8 @@ uv run --env-file .env python manage.py publish
 It always sends all courses, so the live site mirrors what you see locally: a course you
 deleted disappears there too. `--dry-run` does steps 1 and 2 only.
 
-Publishing shows the content to everyone who can sign in. It is done when the owner asks
-for it, not at the end of every content session.
+Publishing makes the content public. It is done when the owner asks for it, not at the end
+of every content session.
 
 ## Shipping code
 
@@ -212,21 +198,17 @@ with its Caddyfile mounted from the host.
    ```
    It creates a deploy-only SSH key, pins it to `deploy ci` on the server, and stores it
    with the server's address and host key as Actions secrets.
-5. **Switch on signing in:** create the OAuth client and run `deploy/setup-google.sh`
-   ([Accounts](#accounts) has the steps). Until then the site shows its landing page and
-   says that signing in is not set up.
-6. **Schedule the backup:** `ssh <server> dsai-vault/bin/deploy schedule-backup`.
 
-On Windows, start the scripts with Git Bash by its full path. In PowerShell a bare `bash`
+On Windows, start both scripts with Git Bash by its full path. In PowerShell a bare `bash`
 is the WSL launcher, which fails if no Linux is installed:
 
 ```
 & "C:\Program Files\Git\bin\bash.exe" deploy/setup-cloudflare.sh <server> dsai3 <origin-url>
 ```
 
-Steps 3 to 6 change things only you should change (the server's shared web server, who
-may log in to it, your Cloudflare, GitHub and Google accounts), so they are scripts for
-you to read and run rather than something a session does for you.
+Steps 3 and 4 change things only you should change (the server's shared web server, who
+may log in to it, your Cloudflare and GitHub accounts), so they are scripts for you to
+read and run rather than something a session does for you.
 
 ## Day to day
 
@@ -235,9 +217,8 @@ you to read and run rather than something a session does for you.
 | see what is running | `ssh <server> dsai-vault/bin/deploy status` |
 | read the logs | `ssh <server> dsai-vault/bin/deploy logs` (or `logs 500`) |
 | restart | `ssh <server> dsai-vault/bin/deploy restart` |
-| back up the database | `ssh <server> dsai-vault/bin/deploy backup` |
 | run a management command | `ssh -t <server> dsai-vault/bin/deploy manage <command>` |
-| let yourself into `/admin/` | sign in on the site once, then `ssh <server> dsai-vault/bin/deploy manage make_admin you@example.com` |
+| create an admin login | `ssh -t <server> dsai-vault/bin/deploy manage createsuperuser` |
 
 **Going back to an earlier version.** The server keeps the last three images. Deploy the
 earlier commit again by hand (the `git archive <commit> | ssh …` line above, with that
@@ -252,20 +233,9 @@ new value. Between the two steps the site answers 404.
 **Revoking the CI key.** Delete its line (it ends in `github-actions deploy (…)`) from
 `~/.ssh/authorized_keys` on the server.
 
-### Restoring a backup
-
-```
-ssh <server> 'dsai-vault/bin/deploy restore ~/dsai-vault/backups/<file>'
-uv run --env-file .env python manage.py publish
-```
-
-The first line stops the site for a few seconds and swaps the database. The second reloads
-the course content, in case it changed since the backup was made.
-
 ### Rebuilding from nothing
 
-**This erases every account and all progress.** Only the course content comes back. Make
-a backup first unless losing them is the point.
+The database and media can be thrown away at any time:
 
 ```
 ssh <server> 'cd ~/dsai-vault && docker compose down && docker volume rm dsai-vault_data'
@@ -273,112 +243,48 @@ git archive --format=tar.gz HEAD | ssh <server> "dsai-vault/bin/deploy app $(git
 uv run --env-file .env python manage.py publish
 ```
 
-A browser that was signed in before notices that the server has forgotten it and sends its
-own copy of that person's progress again at the next sign-in, so people who come back get
-their progress back from their own device.
-
 On a new server, start at [Setting it up from scratch](#setting-it-up-from-scratch).
 
 ## What is and is not protected
 
-- Every page needs a sign-in, except the landing page. Any Google account is accepted, so
-  this keeps out crawlers and passers-by, not a determined person. Restricting it to
-  certain addresses is described under [Accounts](#accounts).
-- Images used by course content (`/media/…`) are served by the proxy without a sign-in.
-  Their names are long hashes, so they cannot be guessed, but anyone given the address of
-  one can open it.
-- Every response carries `X-Robots-Tag: noindex, nofollow` and `/robots.txt` disallows
-  everything.
+- The site is public for now. Every response carries `X-Robots-Tag: noindex, nofollow` and
+  `/robots.txt` disallows everything, so it should stay out of search engines, but anyone
+  with the address can read it.
 - Source material is never published: `publish` does not pack it, and the page that links
   original files is switched off outside DEBUG.
-- The server only answers requests that carry the secret, so nothing is readable under the
-  server's own name.
-- `/privacy/` says in plain words what is stored and how to remove it. It is public, and
-  Google's consent screen links to it. `DSAI_CONTACT_EMAIL` in the server's `.env` adds
-  an address for questions to it.
-- About each person the site stores what Google hands over at sign-in (name, e-mail
-  address, Google's id for the account) and their study progress. No passwords. A person
-  can delete all of it from Settings; deleting the user in the admin does the same.
+- The server only answers requests that carry the secret, so the content is not readable
+  under the server's own name.
 - No secret is in the repository, in an image, or in a log. `.env` on the server is
   readable by its owner only.
 - The containers run as an unprivileged user without Linux capabilities, on a read-only
   file system, and are not published on any port of the server.
-- Not done yet: a Content Security Policy, rate limiting, off-server backups.
+- Not done yet: a Content Security Policy, rate limiting, backups (nothing to back up yet).
 
-## Accounts
+## Next: signing in with faculty accounts
 
-People sign in with Google, through [django-allauth](https://docs.allauth.org/). The site
-never sees or stores a password. The first sign-in creates the person as an ordinary
-Django user; their progress is then saved to the server and follows them between devices
-([ARCHITECTURE.md](ARCHITECTURE.md#accounts-and-progress) explains how).
+The plan is that the site stops being public and asks for a Google sign-in with a faculty
+address. Nothing of this is built. What it will take:
 
-### Creating the Google OAuth client (once)
+1. **Library.** [django-allauth](https://docs.allauth.org/) with its Google provider. It
+   adds the "Sign in with Google" flow and stores users in Django's own `auth` tables.
+2. **Restricting who gets in.** An allauth *adapter* that refuses any account whose
+   verified e-mail does not end in the faculty domain. Passing Google the `hd` (hosted
+   domain) hint narrows the account chooser, but the check that counts is the one on the
+   server.
+3. **Requiring it everywhere.** Django's `LoginRequiredMiddleware` makes every view
+   require a login unless it is marked otherwise; the sign-in pages are exempted.
+4. **Google side** (the owner does this): an OAuth client in Google Cloud Console with the
+   redirect address `https://dsai3.pages.dev/accounts/google/login/callback/`. Its client
+   id and secret go into `~/dsai-vault/.env`, never into git.
+5. **Database.** It now holds accounts, so it gets a nightly backup: `sqlite3 .backup` to a
+   file, copied off the server. The e-mail check in the settings also has to stop being
+   silenced ([config/settings.py](../config/settings.py), `mail.E001`) if sign-in mails
+   are ever sent.
+6. **Then, optionally, progress on the server:** the `progress` app sketched in
+   [ARCHITECTURE.md](ARCHITECTURE.md), so grades follow the person across devices.
 
-In [Google Cloud Console](https://console.cloud.google.com/), signed in with the Google
-account that should own this:
-
-1. Create a project (any name, for example "DSAI Vault").
-2. **APIs & Services → OAuth consent screen** (it opens "Google Auth Platform"): user type
-   **External**; app name, your e-mail as support and developer contact. Scopes: leave
-   the defaults (`email`, `profile`, `openid`).
-3. **Branding**: Google will not let the app be published without these. The logo is
-   optional: the file to upload is `static/brand/logo-512.png`. With a logo the console
-   says "Your app requires verification". That is about the branding only: until Google
-   has verified it (Verification Center; it asks you to prove you control the home
-   page's domain and takes days), its sign-in screen does not show the app's name and
-   logo. Signing in works regardless, and the user cap shown on the Audience page does
-   not apply, because the site asks for no sensitive scopes. Submit it once the site is
-   live: the reviewers open the home page and the privacy link.
-   ```
-   Application home page            https://dsai3.pages.dev/
-   Application privacy policy link  https://dsai3.pages.dev/privacy/
-   Authorized domains               dsai3.pages.dev
-   ```
-4. **Audience → Publish app** ("In production"). While it is in "Testing", only the
-   test users you list there can sign in.
-5. **Clients → Create client** (the same as Credentials → Create credentials → OAuth
-   client ID), type **Web
-   application**. Under **Authorised redirect URIs** add exactly:
-   ```
-   https://dsai3.pages.dev/accounts/google/login/callback/
-   http://localhost:8000/accounts/google/login/callback/
-   ```
-6. **Download JSON** for the new client.
-
-Then, from this folder:
-
-```
-bash deploy/setup-google.sh <server> <path to the downloaded JSON>
-```
-
-It stores the client id and secret in the server's `.env` (and in your local `.env`, so
-Google sign-in also works on `localhost`), installs the current `deploy/` configuration
-and restarts. Run it **before** the code with sign-in goes live; in the other order the
-site is closed until you do.
-
-### Who may sign in
-
-Anyone with a Google account. To narrow it later (the original plan was faculty addresses
-only), write an allauth *adapter*: a small class whose `pre_social_login` refuses a
-sign-in unless the verified e-mail ends in the wanted domain, named in
-`SOCIALACCOUNT_ADAPTER`. Passing Google the `hd` hint narrows its account chooser as
-well, but the check that counts is the one on the server.
-
-### Admin
-
-`/admin/` needs a staff user. Sign in on the site with Google once, then run
-`deploy manage make_admin you@example.com` (table above). No password is involved: the
-admin accepts the session you already have.
-
-### An open site
-
-`DSAI_REQUIRE_LOGIN=0` in the server's `.env` removes the requirement: no landing page,
-everything public again, and progress stays in each browser as it did before accounts.
-
-```
-printf 0 | ssh <server> dsai-vault/bin/deploy setenv DSAI_REQUIRE_LOGIN
-ssh <server> dsai-vault/bin/deploy restart
-```
+Cloudflare Access could do the gatekeeping with no code, but its free plan stops at 50
+people, which a faculty passes quickly.
 
 ## If you later get a real domain
 

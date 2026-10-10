@@ -8,40 +8,14 @@
 {% block content %}
 <div x-data="settingsPanel">
   <header class="page-head">
-    <p class="overline">{% if user.is_authenticated %}Your account{% else %}This browser{% endif %}</p>
+    <p class="overline">This browser</p>
     <h1>Settings</h1>
   </header>
 
-  {% if user.is_authenticated %}
   <section class="section mt-0">
-    <div class="section-head"><h2>{% icon "course" %}Account</h2></div>
-    <div class="card">
-      <div class="row">
-        <div>
-          <strong>{{ user.get_full_name|default:user.username }}</strong>
-          <p class="faint">{{ user.email }}{% if user.is_staff %} · <a class="link" href="{% url 'admin:index' %}">admin</a>{% endif %}</p>
-        </div>
-        <span class="spacer"></span>
-        <form method="post" action="{% url 'account_logout' %}">{% csrf_token %}<button class="btn btn--tonal" type="submit">Sign out</button></form>
-      </div>
-      <p class="faint mt-4">Signed in with Google. The site stores your name, your e-mail address and your study progress, and nothing else. <a class="link" href="{% url 'catalog:privacy' %}">Privacy</a></p>
-      <div class="row mt-4">
-        <span class="spacer"></span>
-        <button class="btn" type="button" @click="$refs.remove.showModal()">{% icon "delete" %}Delete my account</button>
-      </div>
-    </div>
-  </section>
-  {% endif %}
-
-  <section class="section{% if not user.is_authenticated %} mt-0{% endif %}">
     <div class="section-head"><h2>{% icon "sync" %}Your progress</h2></div>
     <div class="card">
-      {% if user.is_authenticated %}
-      <p>Grades, ratings, exam attempts and activity are saved to your account, so they follow you to any device you sign in on. This browser keeps a copy and works from it, which is why studying still works offline.</p>
-      <p class="rail__saved mt-2" :data-state="$store.progress.saveState" x-text="$store.progress.saveLabel"></p>
-      {% else %}
-      <p>Grades, ratings, exam attempts and activity are stored in this browser only. Nothing is sent anywhere.</p>
-      {% endif %}
+      <p>Grades, read marks, exam attempts and activity are stored in this browser only. Nothing is sent anywhere.</p>
       <p class="faint mt-2"><span x-text="totals.records">0</span> items graded or marked · activity on <span x-text="totals.days">0</span> day<span x-show="totals.days !== 1">s</span></p>
       <div class="row mt-5">
         <button class="btn btn--filled" type="button" @click="exportFile()">{% icon "download" %}Export to a file</button>
@@ -50,7 +24,7 @@
         <span class="spacer"></span>
         <button class="btn" type="button" @click="resetAll()">{% icon "delete" %}Clear everything</button>
       </div>
-      <p class="faint mt-4">Import never overwrites: for each item the more recent grade wins. Clearing applies to your account, so it reaches your other devices too.</p>
+      <p class="faint mt-4">Import never overwrites: for each item the more recent grade wins, so you can move between two computers in either direction.</p>
     </div>
   </section>
 
@@ -94,18 +68,6 @@
       </div>
     </div>
   </section>
-
-  {% if user.is_authenticated %}
-  <dialog class="dialog" x-ref="remove">
-    <h2>Delete your account?</h2>
-    <p class="muted">Your account and all progress saved to it are removed from the server for good. The copy in this browser is removed too. You can sign in again later, but you would start from nothing.</p>
-    <form class="actions" method="post" action="{% url 'accounts:delete' %}" @submit="forget()">
-      {% csrf_token %}
-      <button class="btn" type="button" @click="$refs.remove.close()">Cancel</button>
-      <button class="btn btn--filled btn--danger" type="submit">Delete everything</button>
-    </form>
-  </dialog>
-  {% endif %}
 
   <dialog class="dialog" x-ref="confirm">
     <h2 x-text="confirm?.title"></h2>

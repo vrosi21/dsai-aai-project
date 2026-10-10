@@ -15,7 +15,7 @@
 <div class="list">
   {% for doc in documents %}
   <a class="list-item list-item--tall" href="{{ doc.get_absolute_url }}">
-    <span class="list-item__lead" x-data="readMark('{{ doc.progress_key }}')" :data-state="state">{% if doc.number is not None %}{{ doc.number }}{% else %}{% icon kind %}{% endif %}</span>
+    <span class="list-item__lead" x-data="readMark('{{ doc.progress_key }}')" :data-done="read">{% if doc.number is not None %}{{ doc.number }}{% else %}{% icon kind %}{% endif %}</span>
     <span class="list-item__body">
       <strong>{{ doc.title }}</strong>
       {% if doc.summary %}<span class="wrap">{{ doc.summary }}</span>{% endif %}

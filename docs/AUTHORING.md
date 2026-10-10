@@ -131,7 +131,7 @@ progress is stored under that id.
   questions `<set>-q1` or `<set>-p1`.
 
 File names behave the same way for documents: renaming `03-bayes.md` changes its address
-and loses every reader's rating of it. Moving a card to another deck file is safe.
+and loses its read mark. Moving a card to another deck file is safe.
 
 ## Linking
 
