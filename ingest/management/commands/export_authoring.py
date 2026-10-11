@@ -1,22 +1,26 @@
-"""Put what educators need into the content repository.
+"""Build the educator kit: what the people who write courses work from.
 
-    manage.py export_authoring courses
+    manage.py export_authoring educator-kit
 
-The course files live in a repository of their own, shared with the people who write
-courses. They do not have this application, so that repository carries a copy of
-everything needed to write content and to check it:
+The kit is a repository of its own that every educator clones and keeps up to date with
+`git pull`. It holds no course content. It carries a copy of everything needed to write
+content and to check it without this application:
 
-    README.md  AGENTS.md  CLAUDE.md                 from ingest/content_repo/
+    README.md  AGENTS.md  CLAUDE.md                 from ingest/educator_kit/
     .gitignore  .gitattributes                      (kept there without the dot)
+    .claude/skills/                                 the same instructions as a command
+    courses/README.md                               where an educator's own course goes;
+                                                    the rest of that folder is ignored
     docs/                                           the authoring guide, the field reference,
                                                     the schemas and the example course
-    tools/check.py                                  the checker
-    tools/rules/                                    the part of the importer it runs: the
+    tools/check.py  tools/pack.py                   the checker, and the packer for hand-ins
+    tools/rules/                                    the part of the importer they run: the
                                                     modules of ingest/ that need no Django
 
 All of it is generated: the originals are here, where they are tested with the code they
 describe. Run this again after changing the authoring docs, a schema or the importer, then
-commit the result in the content repository. Course folders are never touched.
+commit and push the result in the kit's repository. An educator's `courses/` folder, should
+the target have one, is never touched.
 """
 
 import shutil
@@ -25,28 +29,33 @@ from pathlib import Path
 from django.conf import settings
 from django.core.management.base import BaseCommand, CommandError
 
-KIT = Path(__file__).resolve().parents[2] / "content_repo"
+KIT = Path(__file__).resolve().parents[2] / "educator_kit"
 INGEST = KIT.parent
 DOCS = Path(settings.BASE_DIR) / "docs"
 
-# The importer's first half: finding files, reading YAML, checking fields. None of these
-# modules imports Django, which is what lets them run in a repository that has only Python.
-RULES = ["discover.py", "load.py", "report.py", "schemas.py", "yamlio.py"]
-# Kit file -> its name in the content repository.
-TOP = {
+# The importer's first half (finding files, reading YAML, checking fields) and the shape
+# of a hand-in. None of these modules imports Django, which is what lets them run in a
+# repository that has only Python.
+RULES = ["discover.py", "handin.py", "load.py", "report.py", "schemas.py", "yamlio.py"]
+# Kit file -> its place in the kit's repository.
+FILES = {
     "README.md": "README.md",
     "AGENTS.md": "AGENTS.md",
     "CLAUDE.md": "CLAUDE.md",
     "gitignore": ".gitignore",
     "gitattributes": ".gitattributes",
+    "courses/README.md": "courses/README.md",
+    "skills/update-cms/SKILL.md": ".claude/skills/update-cms/SKILL.md",
+    "tools/check.py": "tools/check.py",
+    "tools/pack.py": "tools/pack.py",
 }
 GUIDE = ["AUTHORING.md", "content-types", "schemas", "example-course"]
 
 NOTE = """# How content is written
 
-These files are copies. The originals are kept with the application, where they are
-tested together with the code they describe, and are copied here by its
-`export_authoring` command. Do not edit them here: the next copy would undo it.
+These files are copies. The originals are kept with the site's own code, where they are
+tested together with what they describe. Do not edit them here: `git pull` brings the
+next version.
 
 - [AUTHORING.md](AUTHORING.md): the guide. Read it first.
 - [content-types/](content-types/): one page per kind of file, and
@@ -54,12 +63,14 @@ tested together with the code they describe, and are copied here by its
 - [schemas/](schemas/): the same format as JSON Schema, for editors and tools.
 - [example-course/example/](example-course/example/): a complete, valid course.
 
-A few links in the guide lead to pages about running the site (DEPLOYMENT.md,
-ARCHITECTURE.md). Those are not part of this repository, and nothing in them is needed to
-write content.
+The guide was written for the site's own repository. In this kit a course is in
+`courses/<course>/`, and the commands are `tools/check.py` and `tools/pack.py` (see the
+README at the top). A few links in the guide lead to pages about running the site
+(DEPLOYMENT.md, ARCHITECTURE.md); those are not part of the kit, and nothing in them is
+needed to write content.
 """
 
-HEADER = "# Copied from the application by `manage.py export_authoring`. Do not edit here.\n"
+HEADER = "# Copied from the site's code by `manage.py export_authoring`. Do not edit here.\n"
 
 
 def copy(source, target):
@@ -74,25 +85,26 @@ def copy(source, target):
 
 
 class Command(BaseCommand):
-    help = "Copy the authoring docs and the checker into the content repository."
+    help = "Write the educator kit (instructions, docs, checker) into its repository folder."
 
     def add_arguments(self, parser):
-        parser.add_argument("target", help="The content repository: the courses folder.")
+        parser.add_argument("target", help="The kit's folder, e.g. educator-kit.")
 
     def handle(self, *args, **options):
         target = Path(options["target"]).resolve()
         if not target.is_dir():
             raise CommandError(f"{target} is not a folder.")
-        if target == Path(settings.BASE_DIR).resolve():
-            raise CommandError("That is the application itself. Name the courses folder.")
+        if target in (Path(settings.BASE_DIR).resolve(), Path(settings.COURSES_DIR).resolve()):
+            raise CommandError(
+                "That is the application or its courses folder. Name the kit's own folder."
+            )
 
-        for name, published in TOP.items():
+        for name, published in FILES.items():
             copy(KIT / name, target / published)
         for name in GUIDE:
             copy(DOCS / name, target / "docs" / name)
         (target / "docs" / "README.md").write_text(NOTE, encoding="utf-8", newline="\n")
 
-        copy(KIT / "tools" / "check.py", target / "tools" / "check.py")
         rules = target / "tools" / "rules"
         if rules.is_dir():
             shutil.rmtree(rules)
@@ -102,5 +114,5 @@ class Command(BaseCommand):
             text = (INGEST / name).read_text(encoding="utf-8")
             (rules / name).write_text(HEADER + text, encoding="utf-8", newline="\n")
 
-        self.stdout.write(self.style.SUCCESS(f"Wrote the authoring kit to {target}"))
-        self.stdout.write("Commit it there. Course folders were not touched.")
+        self.stdout.write(self.style.SUCCESS(f"Wrote the educator kit to {target}"))
+        self.stdout.write("Commit and push it there; educators get it with `git pull`.")

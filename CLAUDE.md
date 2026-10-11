@@ -16,8 +16,10 @@ is saved to their account.
   where courses are grouped by semester.
 - The course's `source/` is read-only raw material.
 - `courses/` is a git repository of its own (the content repository, see
-  [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md#the-content-repository)). Commit there only
-  when asked, and never anything under a `source/` folder.
+  [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md#course-files-and-the-educator-kit)). Commit there
+  only when asked, and never anything under a `source/` folder.
+- What an educator hands in is a zip, taken in with `manage.py import_course <zip>`. Never
+  unpack one by hand: the command is what checks it.
 - Do not touch Python, templates, CSS or JavaScript. If the site cannot show something,
   report it; do not change code to make it fit.
 - Finish with `uv run python manage.py sync_content <course>` printing no errors.
@@ -67,7 +69,8 @@ uv run python manage.py sync_content --watch          re-sync whenever a file ch
 uv run --env-file .env python manage.py publish       send all course content to the live site
 uv run python manage.py startcourse <slug> --title "…" --code X --year "2026-27"
 uv run python manage.py export_schemas                regenerate docs/schemas and fields.md
-uv run python manage.py export_authoring courses      refresh the authoring docs kept in the content repository
+uv run python manage.py export_authoring educator-kit  rebuild the educator kit (then commit and push there)
+uv run python manage.py import_course <zip>           take in the course files an educator handed in
 uv run python manage.py test                          all tests
 uv run ruff check . && uv run ruff format .           lint and format
 ```
@@ -89,7 +92,10 @@ templates/   base page and shared fragments
 static/      CSS, JavaScript (no build step), vendored libraries, fonts, icons
 docs/        AUTHORING.md, ARCHITECTURE.md, DEPLOYMENT.md, content-types/, schemas/, example-course/
 courses/     course folders, grouped as semester-N/<course>/. Not in this repository:
-             a git repository of its own, which educators share (source/ is in neither)
+             a private git repository of its own, the owner's (source/ is in neither)
+educator-kit/ the checkout of the educator kit's repository: instructions for an AI
+             assistant, docs and tools for educators, no course content. Not in this
+             repository either; it is generated from ingest/educator_kit/ and docs/
 tools/       vendor_assets.py (fetch front-end libraries), make_icons.py (the logo, in
              every size, into static/brand/), make_figure.py (the chart on the landing
              page), katex_check.cjs

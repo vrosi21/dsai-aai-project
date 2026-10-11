@@ -25,13 +25,13 @@
     <div class="plate brief">
       <h3>How to add to it</h3>
       <ol>
-        <li><strong>Get the files.</strong> {% if repo %}They are in a private repository: <a class="link" href="{{ repo }}">{{ repo }}</a>. If it says "not found", your GitHub account has not been added yet: ask.{% else %}You will be sent the address of the repository.{% endif %} This course is the folder <code>semester-{{ course.semester|default:"?" }}/{{ course.slug }}</code>.</li>
-        <li><strong>Add the material.</strong> Put the lecture slides, labs and past papers in that folder's <code>source/</code>. They stay on your computer; that folder is never uploaded.</li>
-        <li><strong>Let your assistant write.</strong> Open the repository in your AI assistant and give it this:
-          <pre class="brief__prompt">Update the CMS for this course: semester-{{ course.semester|default:"?" }}/{{ course.slug }}
-Follow AGENTS.md in this repository.</pre>
+        <li><strong>Get the educator kit.</strong> It holds the instructions for your AI assistant, the format and a checker, and no course content: <a class="link" href="{{ kit }}">{{ kit }}</a>. Clone it once. Before each session run <code>git pull</code> in it for the latest instructions; that never touches your course.</li>
+        <li><strong>Put your course into it.</strong> <a class="link" href="{% url 'desk:files' course.series %}">Download the course files</a> and unpack the zip into the kit's <code>courses/</code> folder, so that you have <code>courses/{{ course.slug }}/course.yaml</code>. Git ignores that folder.</li>
+        <li><strong>Add the material.</strong> Put the lecture slides, labs and past papers in <code>courses/{{ course.slug }}/source/</code>. They stay on your computer and are never packed or uploaded.</li>
+        <li><strong>Let your assistant write.</strong> Open the kit's folder in your AI assistant and give it this:
+          <pre class="brief__prompt">Update the CMS for this course: {{ course.slug }}</pre>
         </li>
-        <li><strong>Check, then hand it in.</strong> Read what it wrote against the lecture. Then open a pull request; it is checked automatically, and it is on the site once it has been accepted.</li>
+        <li><strong>Check, pack, hand in.</strong> Read what it wrote against the lecture. Then run <code>uv run tools/pack.py {{ course.slug }}</code> and hand in the zip it makes. It is on the site once it has been taken in and published. The kit's README has all of this in full.</li>
       </ol>
       <p class="brief__state">{% if course.ready %}On the site now: {{ course.counts.reading }} note{{ course.counts.reading|pluralize }}, {{ course.counts.cards }} card{{ course.counts.cards|pluralize }}, {{ course.counts.questions }} problem{{ course.counts.questions|pluralize }}. <a class="link" href="{{ course.get_absolute_url }}">Open the course</a>{% else %}Nothing is on the site for this course yet.{% endif %}</p>
     </div>

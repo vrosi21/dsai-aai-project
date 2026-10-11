@@ -113,8 +113,8 @@ class EducatorApplicationAdmin(CourseColumn, admin.ModelAdmin):
                 "fields": ["status", "created_at", "decided_at"],
                 "description": "Accepting makes this person the educator of the course: "
                 "its page stops asking for one, and their Educators page shows them how "
-                "to get the files. Giving them access to the content repository on "
-                "GitHub is a separate step, done there.",
+                "to get the educator kit and the files of their course. If the kit's "
+                "repository is private, inviting them to it on GitHub is a separate step.",
             },
         ),
     ]

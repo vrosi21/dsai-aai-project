@@ -4,9 +4,9 @@
 # ///
 """Check course files before handing them in.
 
-    uv run tools/check.py semester-5/rl            one course
-    uv run tools/check.py                          every course in the repository
-    uv run tools/check.py --status semester-5/rl   what it contains, and what is left to write
+    uv run tools/check.py rl            one course (the folder courses/rl)
+    uv run tools/check.py               every course in courses/
+    uv run tools/check.py --status rl   what it contains, and what is left to write
 
 Without uv: `pip install pyyaml pydantic`, then `python tools/check.py ...`.
 
@@ -37,6 +37,8 @@ from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
 ROOT = HERE.parent
+# Where course folders are kept in the kit. Git ignores everything in it.
+COURSES = ROOT / "courses"
 sys.path.insert(0, str(HERE))
 
 from rules.discover import clashes, course_folders, discover  # noqa: E402
@@ -180,7 +182,7 @@ def counts(bundle):
 
 def check(folder):
     """Run the checks on one course folder. Returns (report, bundle or None)."""
-    report = Report(course=folder.relative_to(ROOT).as_posix())
+    report = Report(course=folder.name)
     files = discover(folder, report)
     bundle = load_bundle(files, report)
     if bundle is not None:
@@ -188,6 +190,15 @@ def check(folder):
         report.counts = counts(bundle)
     report.status = VALID if report.ok else "FAILED"
     return report, bundle
+
+
+def find(name):
+    """The course folder meant by `name`: a course's name (`rl`) or a path to its folder."""
+    wanted = Path(name).name
+    for folder in course_folders(COURSES):
+        if folder.name == wanted:
+            return folder
+    return None
 
 
 def status(folder, bundle):
@@ -226,18 +237,17 @@ def main(argv=None):
 
     folders = []
     for name in options.courses:
-        folder = (Path.cwd() / name).resolve()
-        if not (folder / "course.yaml").is_file():
-            folder = (ROOT / name).resolve()
-        if not (folder / "course.yaml").is_file() or ROOT not in folder.parents:
-            print(f"{name}: no course folder with a course.yaml here")
-            print("  -> name it from the top of the repository, e.g. semester-5/rl")
+        folder = find(name)
+        if folder is None:
+            print(f"{name}: there is no course folder courses/{name} with a course.yaml")
+            print("  -> download your course's files from the site (Educators page) and")
+            print("     unpack them into courses/")
             return 1
         folders.append(folder)
-    folders = folders or list(course_folders(ROOT))
+    folders = folders or list(course_folders(COURSES))
 
     failed = 0
-    for slug, twice in clashes([ROOT]).items():
+    for slug, twice in clashes([COURSES]).items():
         places = " and ".join(folder.relative_to(ROOT).as_posix() for folder in twice)
         print(f"{slug}: FAILED\n  ERROR   two folders are named `{slug}`: {places}")
         print("          -> a course's address is its folder's name, so it must be unique")
@@ -249,7 +259,8 @@ def main(argv=None):
             print("\n".join(status(folder, bundle)))
         failed += not report.ok
     if not folders:
-        print("No course folders found.")
+        print("No course in courses/ yet. Download your course's files from the site")
+        print("(Educators page) and unpack them there.")
     return 1 if failed else 0
 
 

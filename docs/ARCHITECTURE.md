@@ -451,11 +451,20 @@ whether students see each course and who writes it; the join by series is done w
 **Why an educator is not given the admin.** The admin is one door: `is_staff` opens all
 of it, and narrowing it per table and per course is work that would have to be right
 every time. More to the point, the course tables are a cache. A row added there is gone
-at the next sync, because content only ever arrives as files. So an educator works where
-the content really lives: the course files, kept in a private repository of their own
-with instructions for an AI assistant (see [DEPLOYMENT.md](DEPLOYMENT.md#the-content-repository)).
-What they hand in is a pull request, the owner's review is the merge, and `publish`
-puts it on the site.
+at the next sync, because content only ever arrives as files. So an educator works on
+files, on their own computer, in a copy of the **educator kit**: a repository with the
+instructions for an AI assistant, the authoring docs and a checker, and no course content
+(see [DEPLOYMENT.md](DEPLOYMENT.md#course-files-and-the-educator-kit)).
+
+**A course as one zip** ([ingest/handin.py](../ingest/handin.py)) is how course files
+travel in both directions. The educators' page offers the course's files as a download
+(`desk.views.files`: only to its educator and to staff, built from the course's folder,
+so never more than the site already shows them). The kit packs the course again into the
+same shape, and `manage.py import_course` takes that file in. It trusts nothing in it:
+paths that leave the course folder, links, kinds of file a course is not made of, images
+that carry a script and anything oversized are refused; `course.yaml` may differ only in
+topics and description; and the full validation runs on a temporary copy before a single
+file here changes. The module imports no Django, so the kit runs the very same code.
 
 ## Tests
 
@@ -475,6 +484,9 @@ puts it on the site.
   is reachable signed out, the development sign-in is closed outside DEBUG, deleting an
   account takes its progress with it.
 
+- The educator kit is exported to a temporary folder and its tools are run as separate
+  Python processes, the way an educator runs them; hand-ins made to be refused (a path
+  that climbs out, a changed course code, invalid content) must change nothing.
 - [desk/tests/](../desk/tests/): asking, applying, the educator's page, the switches
   and a closed course, the admin actions, and that a notification never carries what a
   person wrote. The bot is never contacted: the one function that opens a connection is

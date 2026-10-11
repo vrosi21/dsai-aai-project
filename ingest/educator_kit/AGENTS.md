@@ -1,39 +1,44 @@
-# DSAI Vault course content: instructions for an AI assistant
+# DSAI Vault educator kit: instructions for an AI assistant
 
-This repository holds the course content of DSAI Vault, a study site for the Data Science
-and AI programme. Each course is a folder. The site shows what is in a course's `content/`
-folder, and you write those files from the raw material in its `source/` folder.
+DSAI Vault is a study site for the Data Science and AI programme. Its courses are written
+by students, called educators. This repository is their kit: the format, the instructions
+you are reading, and the tools. The person you are working for writes one course. Its
+files are in `courses/<course>/` on this computer, and you write them from the raw
+material in that course's `source/` folder.
 
 You are most likely here because someone told you:
 
 ```
-Update the CMS for this course: semester-5/rl
+Update the CMS for this course: rl
 ```
 
-That means: follow the procedure below for exactly that one course folder. If they named
-a lecture or a file, do that part; if they did not, the work list in step 2 tells you what
-is missing.
+That means: follow the procedure below for exactly that one course, the folder
+`courses/rl`. If they named a lecture or a file, do that part; if they did not, the work
+list in step 2 tells you what is missing.
 
 ## The layout
 
 ```
-semester-5/rl/        one course
+courses/rl/           one course. Everything in courses/ is ignored by git.
   course.yaml         what the course is, and its list of topics
   source/             raw material: slides, labs, homework, past papers. READ ONLY.
   content/            what the site shows. This is where you write.
 docs/                 the format: how content files are written. Read it, never edit it.
-tools/                the checker. Never edit it.
+tools/                check.py and pack.py. Never edit them.
+out/                  the zip files pack.py makes. Ignored by git.
 ```
 
-`source/` exists only on the computer of the person you are working for. Git ignores it on
-purpose and it is never committed. If it is empty, stop and ask them to put the lecture
-material there: there is nothing to write from.
+This repository carries no course content and never will: `courses/` and `out/` are
+ignored, so nothing written there is ever committed or pushed. If `courses/` has no folder
+for the course, stop and ask the person to download their course's files from the site
+(the Educators page) and unpack them there. If the course's `source/` is empty, stop and
+ask them to put the lecture material there: there is nothing to write from.
 
 ## Rules that are never broken
 
 1. **One course per task.** Create and edit files only in that course's `content/` folder,
-   and in its `course.yaml` only as rule 4 allows. Leave every other course, `docs/` and
-   `tools/` exactly as they are.
+   and in its `course.yaml` only as rule 4 allows. Leave every other course, `docs/`,
+   `tools/` and every other file of this repository exactly as it is.
 2. **`source/` is read-only and stays where it is.** The slides and papers belong to the
    lecturers. Do not copy their pages, scans or figures into `content/`; write your own
    summary in your own words. A diagram you draw yourself or a plot you generate is fine.
@@ -43,12 +48,15 @@ material there: there is nothing to write from.
 4. **`course.yaml` is mostly not yours.** You may add `topics` (and reword a topic's
    `title`), and write the `description`. Do not change `title`, `code`, `year`, `series`,
    `semester`, `status`, `enabled`, `has_educator`, `hue` or `order`, and never change or
-   remove a topic's `id`.
+   remove a topic's `id`. A hand-in that changes any of them is refused as a whole.
 5. **Write what the source supports.** If you add something that is not in the material
    (an extra example, background the slides assume), say so in your report. Never invent
    exam dates, weights, or what "will be on the exam".
-6. **No commit, push or pull request unless you are asked.** The person checks what you
-   wrote against the lecture first. That check is theirs and cannot be skipped.
+6. **Never use git on course files.** Do not `git add -f` anything under `courses/` or
+   `out/`, and do not commit or push in this repository at all: it is read-only for
+   educators, and it is updated with `git pull`.
+7. **Do not pack or hand in unless you are asked.** The person checks what you wrote
+   against the lecture first. That check is theirs and cannot be skipped.
 
 ## The procedure
 
@@ -57,14 +65,15 @@ material there: there is nothing to write from.
    not need. `docs/example-course/example/` is a complete, valid course that uses every
    feature once: copy its shapes.
 
-   That guide was written for the application's own repository, so its commands differ
-   here. Where it says `manage.py content_status <course>`, run step 2 below. Where it
-   says `manage.py sync_content <course> --check`, run step 5 below. Loading into the
-   site and `publish` are not part of your work: the person who runs the site does both.
+   That guide was written for the site's own repository, so its paths and commands differ
+   here. The course is in `courses/<course>/` of this kit. Where it says
+   `manage.py content_status <course>`, run step 2 below. Where it says
+   `manage.py sync_content <course> --check`, run step 5 below. Loading into the site and
+   `publish` are not part of your work: the person who runs the site does both.
 
 2. **See what exists and what is missing.**
    ```
-   uv run tools/check.py --status semester-5/rl
+   uv run tools/check.py --status rl
    ```
    It prints what the course contains and, under "not written up yet", the files in
    `source/` that no document names in its `sources:` field. That is the work list.
@@ -84,7 +93,7 @@ material there: there is nothing to write from.
    every file must meet.
 5. **Check.**
    ```
-   uv run tools/check.py semester-5/rl
+   uv run tools/check.py rl
    ```
    Every problem is reported as `file:line  field`, a message, and usually a `->` line
    saying how to fix it. Fix and re-run until it says the structure is valid.
@@ -110,15 +119,15 @@ exact there:
 - In YAML, prose and maths go in block scalars (`|-`). A double-quoted string with a
   backslash in it is an error: `"\theta"` is a TAB followed by `heta`.
 
-Those are checked when the content is loaded into the site. If something fails there you
-will be given the report, in the same `file:line` form, to fix.
+Those are checked when the hand-in is taken in by the site. If something fails there the
+person is sent the report, in the same `file:line` form, for you to fix.
 
 ## Handing it in (only when asked)
 
-1. Work on a branch named after the course and the piece: `rl/lecture-03`.
-2. `git status` must show files under that course's `content/` (and perhaps its
-   `course.yaml`) and nothing else. If a file under a `source/` folder ever shows up
-   there, stop and say so: it must not be committed.
-3. Commit with a message that says what was added: `rl: lecture 3 notes, deck, problems`.
-4. Push the branch and open a pull request. It goes on the site once the person who runs
-   it has merged it and published.
+```
+uv run tools/pack.py rl
+```
+
+It runs the check again and, if the course is valid, writes `out/rl-<date>-<time>.zip`:
+the course's `course.yaml` and its `content/`, and nothing from `source/`. Tell the person
+where the file is. Sending it is theirs to do.

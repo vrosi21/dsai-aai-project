@@ -5,14 +5,18 @@ from functools import wraps
 
 from django.conf import settings
 from django.db import transaction
-from django.http import Http404
+from django.http import Http404, HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils import timezone
 from django.views.decorators.http import require_POST
 
+from catalog import editions
 from catalog.mine import catalogue
+from catalog.models import Course
 from catalog.nav import course_data, has_content
+from ingest import handin
+from ingest.discover import find_course
 
 from .forms import EducatorApplicationForm, RequestForm
 from .models import Educator, EducatorApplication, Request
@@ -166,10 +170,10 @@ def educators(request):
     asked = Request.objects.filter(series__in=series, status=Request.Status.NEW).exclude(
         kind=Request.Kind.IDEA
     )
-    for name in series:
-        course = by_series.get(name)
-        if course is None:
-            continue
+    # Their courses are read directly, not from the catalogue: an educator may be
+    # writing a course that students cannot see yet.
+    for course in _written_by(series):
+        name = course.series
         course.counts = course_data(course)["counts"]
         course.ready = has_content(course)
         course.asked = [item for item in asked if item.series == name]
@@ -185,11 +189,37 @@ def educators(request):
             "writing": writing,
             "offers": [offer for offer in offers if offer.course],
             "seeking": [c for c in _seeking(request) if c.series not in series],
-            "repo": settings.CONTENT_REPO_URL,
+            "kit": settings.EDUCATOR_KIT_URL,
             "applied": "applied" in request.GET,
             "active": "educators",
         },
     )
+
+
+def _written_by(series):
+    """The current year of each of these courses, open to students or not."""
+    return editions.latest(list(Course.objects.filter(series__in=series)))
+
+
+@signed_in
+def files(request, series):
+    """The files of a course as one zip (course.yaml and content/), for the person who
+    writes it: what they unpack into their copy of the educator kit.
+
+    It is what the site has, so it is never more than what the site already shows them,
+    and raw material is not part of it: there is none on the server.
+    """
+    allowed = (
+        request.user.is_staff or Educator.objects.filter(user=request.user, series=series).exists()
+    )
+    current = _written_by([series]) if allowed else []
+    folder = find_course(current[0].slug, settings.CONTENT_ROOTS) if current else None
+    if folder is None:
+        raise Http404
+    response = HttpResponse(handin.pack(folder), content_type="application/zip")
+    # "attachment" makes the browser save the file instead of trying to show it.
+    response["Content-Disposition"] = f'attachment; filename="{folder.name}.zip"'
+    return response
 
 
 @signed_in

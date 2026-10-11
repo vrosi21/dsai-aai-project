@@ -49,7 +49,7 @@ Why it has this shape:
 | What | Where | In git |
 |---|---|---|
 | Application code | GitHub; on the server as the image `dsai-vault:live` | yes |
-| Course files (`course.yaml`, `content/`) | your computer, `courses/`; a copy on the server in `~/dsai-vault/courses/` | not in this repository: in [their own](#the-content-repository) |
+| Course files (`course.yaml`, `content/`) | your computer, `courses/`; a copy on the server in `~/dsai-vault/courses/` | not in this repository: in [their own](#course-files-and-the-educator-kit) |
 | Source material (`source/`: slides, past papers) | your computer only | no |
 | Database: course content | the server, Docker volume `dsai-vault_data` | no, it is rebuilt from the course files |
 | Database: accounts, study progress, requests, educators, the switches for a course | the same file | no, and nothing rebuilds it: it is backed up |
@@ -120,38 +120,63 @@ deleted disappears there too. `--dry-run` does steps 1 and 2 only.
 Publishing shows the content to everyone who can sign in. It is done when the owner asks
 for it, not at the end of every content session.
 
-## The content repository
+## Course files, and the educator kit
 
-The course files have a repository of their own, separate from the application's:
-`courses/` on your computer is a git checkout of it. It exists for the people who write
-courses (educators), who must be able to change course files without being anywhere
-near the code or the server.
+Three repositories, each with one job:
+
+| Repository | Holds | Who writes to it |
+|---|---|---|
+| this one | the application | you, through pull requests |
+| the content repository (`courses/` on your computer is its checkout; private) | every course's `course.yaml` and `content/`, grouped in `semester-N/` folders | you alone |
+| the educator kit (`educator-kit/` here is its checkout) | instructions for an AI assistant, the authoring docs, a checker and a packer. **No course content** | you alone; educators only read it |
+
+Courses are grouped in `semester-N/` folders for people's sake. A course's address is
+still its own folder's name, `publish` sends it as `<slug>/`, and the server keeps the
+courses side by side as before. `source/` is ignored in the content repository: slides and
+past papers are the lecturers' and are never committed anywhere.
+
+**How an educator's work reaches the site.**
+
+1. They clone the kit once and run `git pull` in it before each session. That is how new
+   instructions and format changes reach them.
+2. On the site, their Educators page has **Download the course files**: a zip of their
+   course's `course.yaml` and `content/` as the site has them
+   (`desk.views.files`). They unpack it into the kit's `courses/` folder, which the kit's
+   `.gitignore` ignores entirely, so nothing they write is ever committed or pushed.
+3. They add the lecture material to the course's `source/`, tell their assistant
+   `Update the CMS for this course: <course>`, and check what it wrote.
+4. `tools/pack.py <course>` in the kit checks the course and writes one zip. They send you
+   that file.
+5. You take it in:
+   ```
+   uv run python manage.py import_course rl-20261012-1830.zip
+   ```
+   The zip is treated as untrusted ([ingest/handin.py](../ingest/handin.py)). It must be
+   plainly one existing course, with nothing but `course.yaml` and `content/` in it; its
+   `course.yaml` may differ from yours only in topics and description; it is unpacked to
+   a temporary folder and run through the full validation; and the course folder must have
+   no uncommitted changes. Only then are the course's files replaced. `--check` validates
+   and changes nothing.
+6. Read the diff in `courses/`, run `sync_content <course>`, commit there, and `publish`.
+
+Nothing an educator does reaches the site by itself. Two steps are yours alone:
+`import_course` and `publish`.
+
+**Keeping the kit up to date.** The kit is generated from this repository: its texts are
+in [ingest/educator_kit/](../ingest/educator_kit/), its docs are `docs/`, and its tools
+run copies of the importer's own Django-free modules. After changing the authoring docs,
+a schema, or the importer:
 
 ```
-courses/                      the content repository (private)
-  AGENTS.md  README.md        how to write content, for a person and for an AI assistant
-  docs/                       a copy of the authoring guide, the field reference and the schemas
-  tools/check.py              a quick structural check that needs nothing but Python
-  semester-5/rl/course.yaml
-  semester-5/rl/content/**    what the site shows
-  semester-5/rl/source/**     raw material: ignored by git, never leaves a computer
+uv run python manage.py export_authoring educator-kit
 ```
 
-- Courses are grouped in `semester-N/` folders. That is for people; a course's address is
-  still its own folder's name, `publish` sends it as `<slug>/`, and the server keeps the
-  courses side by side as before.
-- An educator is given access to that repository on GitHub, works on a branch and opens
-  a pull request. Merging it is your review. Nothing they push is on the site until you
-  pull and run `publish`, which validates every course first and refuses to send anything
-  if one has an error.
-- The repository's `docs/` is a copy. After changing the authoring docs or a schema here,
-  refresh it: `uv run python manage.py export_authoring courses` and commit there.
-- `source/` is ignored there by a `.gitignore` rule. Slides and past papers are the
-  lecturers' and are never committed, there or here.
+then commit and push in `educator-kit/`. Educators get it with their next `git pull`.
 
-On a free personal GitHub account a collaborator on a private repository can push to its
-`main` branch; a pull request is a habit you ask for, not something GitHub enforces. What
-protects the site is the step that only you take: `publish`.
+An educator needs to be able to read the kit and nothing else on GitHub. While the kit's
+repository is private that means inviting each of them as a collaborator, and on a free
+personal account a collaborator can also push. The kit contains nothing secret, so making
+that repository public removes both the invitations and the risk; that choice is yours.
 
 ## Shipping code
 

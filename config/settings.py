@@ -199,9 +199,12 @@ CONTACT_EMAIL = os.environ.get("DSAI_CONTACT_EMAIL", "")
 BMO_NOTIFY_URL = os.environ.get("BMO_NOTIFY_URL", "")
 BMO_NOTIFY_TOKEN = os.environ.get("BMO_NOTIFY_TOKEN", "")
 
-# Where the course files are kept for those who write them: a private repository that
-# educators are given access to. Shown on the educators' page.
-CONTENT_REPO_URL = os.environ.get("DSAI_CONTENT_REPO", "https://github.com/vrosi21/dsai-courses")
+# The educator kit: the repository every educator clones, with the instructions for
+# their AI assistant, the format and the checker, and no course content. Its address is
+# shown on the educators' page. It is built by `manage.py export_authoring`.
+EDUCATOR_KIT_URL = os.environ.get(
+    "DSAI_EDUCATOR_KIT", "https://github.com/vrosi21/dsai-educator-kit"
+)
 
 SOCIALACCOUNT_PROVIDERS = {
     "google": {
