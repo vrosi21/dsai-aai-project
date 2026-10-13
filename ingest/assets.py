@@ -17,6 +17,12 @@ class Assets:
         self.course = course
         self.files: dict[Path, str] = {}  # file on disk -> path under MEDIA_ROOT
 
+    def knows(self, path):
+        """Whether an image that is not in the course folder is known all the same. Never,
+        for a sync. The editor's preview answers otherwise for an image that was
+        uploaded and is waiting for its text to be saved (editor/source.py)."""
+        return False
+
     def add(self, path):
         """Register an image; returns the URL the page should use."""
         relative = self.files.get(path)

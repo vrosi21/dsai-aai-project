@@ -611,8 +611,9 @@ is the long form: the kit's README told from the site's side.
 
 [editor/](../editor/) lets the people who write a course change it in the browser: the
 same people as a hand-in (`desk.access.may_write`: its educators, and staff), all
-addresses under `/edit/<course>/`. It has no models. An edit is a hand-in that the site
-makes itself, so everything a hand-in is held to holds here, and the owner's course
+addresses under `/edit/<course>/`. It keeps nothing of a course itself (its one model
+holds images that wait to be saved, see [Images](#images)). An edit is a hand-in that
+the site makes itself, so everything a hand-in is held to holds here, and the owner's course
 files are still never written by the application.
 
 ```
@@ -726,6 +727,44 @@ course and the rest for staff. All of them draw
 [item.html](../editor/templates/editor/item.html); its preview column shows every
 Markdown field of the form as the site would render it (`POST …/preview/fields/`).
 
+### Images
+
+An image can be pasted into a text box of the editor, dropped on it, or chosen with the
+Image button ([editor.js](../static/js/components/editor.js), `place`). What the course
+keeps of it is decided on the server, in [editor/images.py](../editor/images.py), with
+[Pillow](https://pillow.readthedocs.io/):
+
+- **Checked**: at most 8 MB as sent and 40 megapixels, a JPEG, PNG, WebP or GIF that
+  really decodes (Pillow is kept to those four formats), and not an animation. A
+  claim of being larger than it is ("decompression bomb") is refused before decoding.
+- **Turned and cleaned**: a phone stores a portrait photo lying down with a note to turn
+  it. It is turned for real, and then nothing but the pixels and the colour profile is
+  written out: no EXIF, so no position, time or phone model travels with a photo.
+- **Scaled and encoded**: 1600 pixels on the longer side at most, as WebP, twice: for
+  photographs (quality 82) and exactly (lossless). The smaller one is kept, which is the
+  exact one for a screenshot or a drawing and the other for a photo.
+- **Named by its bytes**: `<first 16 hex digits of its SHA-256>.webp`, so the same image
+  is the same file however often it is uploaded.
+- An **SVG** is kept as it is, if it is small and carries no script (the rule a hand-in
+  already holds an SVG to, `ingest.handin.SVG_ACTIVE`).
+
+**Kept aside, then part of the course.** When the picture is chosen the form is not
+saved yet, and an image belongs to a course only once some text shows it. So it waits in
+`editor.Upload` (the app's one model), and the form gets back the line of Markdown that
+shows it, `![…](assets/<name>)`. The preview can already show it: `source.PreviewAssets`
+tells the renderer that the file is known although it is not in the folder
+(`Assets.knows`, which a sync always answers with no) and gives it the address of
+`views.image`, which serves an upload to the people who write that course. On a save,
+`images.attach` looks at the file being written, and adds the uploads it refers to into
+the `assets/` folder beside it, where the format wants an image. From there it is a file
+of the course like any other: in the step's history, in the blob store once, copied to
+`MEDIA_ROOT` by the sync. An upload nothing came to refer to is deleted after a week;
+one kept for another course is never taken.
+
+The two addresses that take or give a file begin with `/edit/image/`, ahead of the
+course, so that `BODY_LIMITS` (9 MB there, for someone signed in) and `RATE_LIMITS` (30
+a minute) can name them.
+
 ### The history: versions of a course
 
 `/edit/<course>/history/` and the pages under it, for the same people as the editor
@@ -813,6 +852,9 @@ a page fills the `editing` block with what it offers (`Edit this page`, `New lec
   read back as data; every item and every file of the example course sent back
   untouched changes nothing; one card changed leaves the rest of its file byte for
   byte; a new deck, exam, paper, palace; what the schema and the course refuse.
+  [test_images.py](../editor/tests/test_images.py): a photo made as a phone writes one
+  (on its side, with a position) comes out upright, as WebP, without the position; what
+  is not a picture is refused; an upload joins the course with the text that shows it.
   How versions are kept
   (`KeptTests`) and that converted steps are the same course to the byte
   (`ConvertedTests`, which runs the migration's function) are with the hand-ins.

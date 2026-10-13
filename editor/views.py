@@ -15,7 +15,7 @@ import json
 from datetime import datetime
 
 from django.db import transaction
-from django.http import Http404, JsonResponse
+from django.http import Http404, HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils.http import url_has_allowed_host_and_scheme
@@ -30,8 +30,9 @@ from ingest import handin
 from ingest.markdown import CALLOUTS
 
 from . import history as versions_of
-from . import source
+from . import images, source
 from .forms import FileForm, PageForm
+from .models import Upload
 
 # What a kind of page is called in a sentence: "a new lecture".
 NOUNS = {"lecture": "lecture", "lab": "lab", "homework": "homework", "guide": "guide"}
@@ -385,6 +386,53 @@ def preview_fields(request, course):
     if sum(len(part["text"]) for part in parts) > MAX_PREVIEW:
         return JsonResponse({"error": "too long to preview"}, status=413)
     return JsonResponse({"fields": source.preview_fields(course, name, parts)})
+
+
+@require_POST
+def upload(request, course):
+    """Take an image chosen in a form (static/js/components/editor.js sends it), make it
+    fit for a course (editor/images.py) and keep it aside. Answers with the line of
+    Markdown that shows it; it joins the course when a text with that line is saved."""
+    course, _context = _open(request, course)
+    sent = request.FILES.get("image")
+    if sent is None:
+        return JsonResponse({"error": "No image was sent."}, status=400)
+    if sent.size > images.MAX_UPLOAD:
+        megabytes = images.MAX_UPLOAD // 1024 // 1024
+        return JsonResponse({"error": f"An image can be {megabytes} MB at most."}, status=400)
+    try:
+        kept = images.keep(request.user, course, sent.read())
+    except images.Unusable as error:
+        return JsonResponse({"error": str(error)}, status=400)
+    return JsonResponse(
+        {
+            "name": kept.name,
+            "path": f"assets/{kept.name}",
+            "url": reverse("editor:image", args=[course.slug, kept.name]),
+            "width": kept.width,
+            "height": kept.height,
+            "bytes": len(kept.data),
+        }
+    )
+
+
+TYPES = {".webp": "image/webp", ".svg": "image/svg+xml"}
+
+
+def image(request, course, name):
+    """An image that is kept aside, for the preview of the form it was added in. Only
+    for the people who write the course: nobody else has anything of it to see yet."""
+    course, _context = _open(request, course)
+    kept = Upload.objects.filter(slug=course.slug, name=name).first()
+    if kept is None:
+        raise Http404
+    ending = name[name.rfind(".") :].lower()
+    response = HttpResponse(
+        bytes(kept.data), content_type=TYPES.get(ending, "application/octet-stream")
+    )
+    # Its name is the hash of its bytes: the same address is always the same image.
+    response["Cache-Control"] = "private, max-age=86400, immutable"
+    return response
 
 
 # ---- the history ---------------------------------------------------------------------------

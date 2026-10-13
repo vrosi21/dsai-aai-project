@@ -93,7 +93,8 @@ desk/        what people send in (Ask or report, applications to write a course)
              something arrives
 editor/      changing a course on the site, for the people who write it: forms filled
              from the course's files, a preview, and a save that goes through
-             desk/handins.py like a hand-in. No models of its own
+             desk/handins.py like a hand-in. Its one model holds uploaded images until
+             the text that shows them is saved
 ingest/      files -> database: schemas, Markdown renderer, sync, management commands
 templates/   base page and shared fragments
 static/      CSS, JavaScript (no build step), vendored libraries, fonts, icons
@@ -150,6 +151,9 @@ To sign in locally press "Development sign-in" on the landing page.
   bytes are in `desk.Blob` (desk/blobs.py). Nothing is deleted from that table, on the
   server or in a migration: it is the history, and the only copy of what educators
   wrote on the site until the owner takes it into the course files.
+- An image uploaded in the editor is re-encoded by `editor/images.py` before anything
+  keeps it: scaled, turned upright, and written without EXIF, because a phone photo
+  carries where it was taken. Never store or serve an upload as it was sent.
 - The editor writes YAML with `ingest/yamledit.py` only (LaTeX goes in literal blocks,
   where a backslash is safe), and what a form may contain is decided by
   `ingest/schemas.py`, the same models the importer uses, not by the form. The forms

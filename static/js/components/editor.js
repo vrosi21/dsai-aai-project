@@ -52,6 +52,7 @@ export default function editor() {
     points: [],
     shown: [], // a form about a YAML file: each of its texts, rendered
     last: null, // there, the text box the cursor was in last
+    uploading: false,
     issues: [], // what the server's renderer objected to
     broken: [], // formulas the browser's KaTeX could not typeset
     pending: false,
@@ -249,6 +250,71 @@ export default function editor() {
         const height = parseFloat(getComputedStyle(box).lineHeight) || 20;
         box.scrollTop = Math.max(0, (line - 4) * height);
       });
+    },
+
+    // ---- images ------------------------------------------------------------------------
+
+    /** Send an image to the site, which makes it fit for a course and keeps it aside
+        (editor/images.py), and write the line of Markdown that shows it. It becomes part
+        of the course when the text with that line is saved. */
+    async place(file) {
+      if (!file || !this.$root.dataset.upload) return;
+      const data = new FormData();
+      data.set("image", file);
+      this.uploading = true;
+      try {
+        const response = await fetch(this.$root.dataset.upload, {
+          method: "POST",
+          body: data,
+          headers: { "X-CSRFToken": document.documentElement.dataset.csrf },
+        });
+        const answer = await response.json().catch(() => ({}));
+        if (!response.ok) {
+          throw new Error(
+            answer.error || (response.status === 413 ? "That image is too large." : "The image could not be taken."),
+          );
+        }
+        const box = this.box;
+        const { selectionStart: start, selectionEnd: end, value } = box;
+        const before = value.slice(0, start);
+        const gap = before === "" || before.endsWith("\n\n") ? "" : before.endsWith("\n") ? "\n" : "\n\n";
+        // What the picture shows is read out by screen readers and shown if it fails to
+        // load: left selected, to be typed over.
+        const what = "Describe the picture";
+        this.put(start, end, `${gap}![${what}](${answer.path})\n`, gap.length + 2, gap.length + 2 + what.length);
+      } catch (error) {
+        this.$store.ui.say(error.message, 6000);
+      } finally {
+        this.uploading = false;
+      }
+    },
+    picked(event) {
+      this.place(event.target.files[0]);
+      event.target.value = ""; // so that choosing the same file again is a change
+    },
+    /** An image among what was pasted or dropped on a text box, or nothing. */
+    pictured(event, files) {
+      if (!event.target.matches?.("textarea[data-md], textarea[name=body]")) return null;
+      return [...(files ?? [])].find((file) => file.type.startsWith("image/")) ?? null;
+    },
+    pasted(event) {
+      const file = this.pictured(event, event.clipboardData?.files);
+      if (!file) return; // text: pasted as always
+      event.preventDefault();
+      this.last = event.target;
+      this.place(file);
+    },
+    dragging(event) {
+      // A browser only lets something be dropped where dragging over was accepted.
+      if (event.dataTransfer?.types?.includes("Files")) event.preventDefault();
+    },
+    dropped(event) {
+      const file = this.pictured(event, event.dataTransfer?.files);
+      if (!file) return;
+      event.preventDefault();
+      this.last = event.target;
+      event.target.focus();
+      this.place(file);
     },
 
     // ---- the toolbar -------------------------------------------------------------------

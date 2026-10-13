@@ -354,6 +354,9 @@ SERVE_SOURCE_FILES = env_flag("DSAI_SERVE_SOURCE", DEBUG)
 BODY_LIMITS = [
     # A hand-in: the zip of a course (desk.handins.MAX_UPLOAD, 25 MB) and the form around it.
     ("/educators/courses/", 26 * 1024 * 1024),
+    # An image added in the editor: 8 MB as it is sent (editor.images.MAX_UPLOAD), and
+    # the form around it. What is kept of it is far smaller.
+    ("/edit/image/", 9 * 1024 * 1024),
 ]
 
 
@@ -372,6 +375,9 @@ RATE_LIMITS = [
     # The forms that write to the owner. Nobody sends thirty requests a minute by hand.
     ("desk", "/ask/", 30),
     ("desk", "/educators/", 30),
+    # An image sent to the editor is decoded and encoded twice: the costliest request
+    # there is, so the fewest. Listed first: the first line that matches is applied.
+    ("edit-image", "/edit/image/", 30),
     # The editor asks for a preview after every pause in typing, and a save re-reads the
     # whole course: generous for someone writing, far below what a loop would ask.
     ("edit", "/edit/", 180),

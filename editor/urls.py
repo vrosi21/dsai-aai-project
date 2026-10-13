@@ -14,6 +14,11 @@ from .items import SHELVES
 app_name = "editor"
 
 urlpatterns = [
+    # Images sent from a form, and shown back to it. Before everything else, and with the
+    # course second: the two addresses that take a file share a beginning of their own,
+    # which is what the limits on size and on rate go by (config/settings.py).
+    path("image/<slug:course>/", views.upload, name="upload"),
+    path("image/<slug:course>/<str:name>", views.image, name="image"),
     path("<slug:course>/", views.overview, name="overview"),
     path("<slug:course>/switch/", views.switch, name="switch"),
     path("<slug:course>/preview/", views.preview, name="preview"),

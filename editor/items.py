@@ -23,7 +23,7 @@ import yaml
 from desk import handins
 from ingest import schemas, yamledit
 
-from . import source
+from . import images, source
 
 
 @dataclass(frozen=True)
@@ -232,6 +232,7 @@ def change(user, course, where, make):
             files.pop(where.name, None)
         else:
             files[where.name] = result.encode("utf-8")
+            images.attach(course, files, where.name)
         return files
 
     return handins.change(user, course, edit)

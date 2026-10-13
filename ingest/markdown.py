@@ -385,7 +385,7 @@ class Renderer:
         path = (at.base_dir / src).resolve()
         if not path.is_relative_to(self.content_root):
             self._error(at, line, f"image path leaves the course content folder: {src}")
-        elif not path.is_file():
+        elif not path.is_file() and not self.assets.knows(path):
             self._error(
                 at,
                 line,

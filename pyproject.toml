@@ -10,6 +10,7 @@ dependencies = [
     "linkify-it-py>=2.2.0",
     "markdown-it-py>=4.2",
     "mdit-py-plugins>=0.6",
+    "pillow>=11",
     "pydantic>=2.14",
     "pygments>=2.21.0",
     "pyyaml>=6.0.3",

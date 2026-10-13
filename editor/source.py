@@ -15,6 +15,7 @@ from pathlib import PurePosixPath
 
 import yaml
 from django.http import Http404
+from django.urls import reverse
 
 from desk import handins
 from ingest import handin, live, yamledit
@@ -26,6 +27,8 @@ from ingest.markdown import Renderer
 from ingest.refs import Resolver
 from ingest.report import Report
 from ingest.yamlio import split_front_matter
+
+from . import images
 
 # "lecture" -> "lectures": the folder under content/ that holds pages of each kind.
 DIRS = {kind: directory for directory, kind in DOCUMENT_DIRS.items()}
@@ -163,6 +166,7 @@ def save(user, course, name, text, seen):
             del files[name]
         else:
             files[name] = text if isinstance(text, bytes) else text.encode("utf-8")
+            images.attach(course, files, name)
         return files
 
     return handins.change(user, course, edit)
@@ -174,6 +178,25 @@ def save(user, course, name, text, seen):
 # every file of a course to resolve the links of one preview would be the slowest thing
 # the editor does, and it is asked for after every pause in typing.
 _resolvers = {}
+
+
+class PreviewAssets(Assets):
+    """The images of a course as a preview sees them: those in its folder, and those
+    uploaded in the editor that wait for their text to be saved. The second kind is not
+    on disk under the course, so it is shown from where it is kept (editor.views.image)."""
+
+    def __init__(self, course):
+        super().__init__(course.slug)
+        self.staged = images.staged(course)
+        self.base = reverse("editor:image", args=[course.slug, "x"])[:-1]
+
+    def knows(self, path):
+        return path.parent.name == "assets" and path.name in self.staged
+
+    def add(self, path):
+        if not path.is_file() and self.knows(path):
+            return self.base + path.name
+        return super().add(path)
 
 
 def resolver(course):
@@ -200,7 +223,7 @@ def preview(course, name, body, takeaways=(), *, document=True):
     renderer = Renderer(
         report=report,
         resolver=resolver(course),
-        assets=Assets(course.slug),
+        assets=PreviewAssets(course),
         content_root=where / "content",
     )
     done = renderer.render(
@@ -236,7 +259,7 @@ def preview_fields(course, name, fields):
     renderer = Renderer(
         report=report,
         resolver=resolver(course),
-        assets=Assets(course.slug),
+        assets=PreviewAssets(course),
         content_root=where / "content",
     )
     shown = []

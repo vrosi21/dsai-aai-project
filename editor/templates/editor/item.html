@@ -10,7 +10,7 @@
 {% block inner_class %}page__inner--wide{% endblock %}
 
 {% block content %}
-<div class="editor editor--item" x-data="editor" data-fields="{% url 'editor:preview_fields' course.slug %}" data-file="{{ file }}" :data-pane="pane" @keydown="keys($event)">
+<div class="editor editor--item" x-data="editor" data-fields="{% url 'editor:preview_fields' course.slug %}" data-file="{{ file }}" data-upload="{% url 'editor:upload' course.slug %}" :data-pane="pane" @keydown="keys($event)">
   <header class="editor__head">
     <div>
       <p class="overline">{{ overline }}</p>
@@ -28,7 +28,7 @@
   {% if refused %}{% include "editor/refused.html" with form_id="editor-form" current_url="" %}{% endif %}
 
   <div class="editor__cols">
-    <form class="editor__write form" id="editor-form" method="post" action="{{ here }}" @input="changed($event)" @focusin="focused($event)" @submit="leaving = true" novalidate>
+    <form class="editor__write form" id="editor-form" method="post" action="{{ here }}" @input="changed($event)" @focusin="focused($event)" @paste="pasted($event)" @dragover="dragging($event)" @drop="dropped($event)" @submit="leaving = true" novalidate>
       {% csrf_token %}
       <input type="hidden" name="seen" value="{{ seen }}">
       {% for problem in problems %}<p class="form__error" role="alert">{{ problem }}</p>{% endfor %}
@@ -56,6 +56,9 @@
         <button type="button" @click="tool('frac')" title="A fraction">a/b</button>
         <span class="toolbar__gap" aria-hidden="true"></span>
         <button type="button" @click="tool('blank')" title="A blank to recall, in a fill-in-the-blanks card">{% templatetag openvariable %}blank{% templatetag closevariable %}</button>
+        <span class="toolbar__gap" aria-hidden="true"></span>
+        <button type="button" @click="$refs.image.click()" :disabled="uploading" title="An image of your own: a drawing, a plot, a screenshot. It can also be pasted or dropped on the text."><span x-show="!uploading">Image</span><span x-show="uploading" x-cloak>Sending…</span></button>
+        <input type="file" x-ref="image" accept="image/png,image/jpeg,image/webp,image/gif,image/svg+xml" hidden @change="picked($event)">
       </div>
 
       {% for section in sections %}
@@ -71,6 +74,7 @@
         <span class="editor__unsaved" x-show="dirty" x-cloak>Not saved yet</span>
       </div>
       <p class="form__hint">A save is on the site at once, after the same check every course file passes. An id cannot be changed once it is saved: what people have marked is stored under it.</p>
+      <p class="form__hint">An image can be pasted, dropped on the text, or chosen with <strong>Image</strong>: it is scaled, turned upright, and stripped of what a camera writes into a photo. Your own drawings, plots and screenshots only: not pages of the lecturers' slides, and nothing scanned from a book.</p>
       {% if raw or remove %}
       <p class="editor__more">
         {% if raw and not new %}<a class="link" href="{{ raw }}" @click="leaving = true">The file as text</a>{% endif %}
