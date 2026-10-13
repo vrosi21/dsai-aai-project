@@ -19,9 +19,11 @@ is saved to their account.
   [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md#course-files-and-the-educator-kit)). Commit there
   only when asked, and never anything under a `source/` folder.
 - Educators hand their work in on the site, or edit the course there, and either goes
-  live at once. To bring that into the course files, download the newest step from the
-  admin (Hand-ins) and run `manage.py import_course <zip>`. Never unpack one by hand: the
-  command is what checks it.
+  live at once. To bring that into the course files, the owner runs `manage.py take_in`
+  (every step, as commits in `courses/`), or downloads one step from the admin
+  (Hand-ins) and runs `manage.py import_course <zip>`. Never unpack one by hand, and
+  never write those files yourself: the commands are what check them. `take_in` makes
+  commits in the content repository, so it is for the owner to run or to ask for.
 - Do not touch Python, templates, CSS or JavaScript. If the site cannot show something,
   report it; do not change code to make it fit.
 - Finish with `uv run python manage.py sync_content <course>` printing no errors.
@@ -72,8 +74,8 @@ uv run --env-file .env python manage.py publish       send all course content to
 uv run python manage.py startcourse <slug> --title "…" --code X --year "2026-27"
 uv run python manage.py export_schemas                regenerate docs/schemas and fields.md
 uv run python manage.py export_authoring educator-kit  rebuild the educator kit (then commit and push there)
-uv run python manage.py import_course <zip>           take in the course files an educator handed in
-                                                      (or a year that was started on the site)
+uv run --env-file .env python manage.py take_in       commit every step made on the site into courses/
+uv run python manage.py import_course <zip>           take in one step by hand (or a year started on the site)
 uv run python manage.py test                          all tests
 uv run ruff check . && uv run ruff format .           lint and format
 ```

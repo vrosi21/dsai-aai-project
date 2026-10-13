@@ -546,6 +546,19 @@ converts the steps there are, each only if it reproduces its recorded version to
 byte; the column stays one release longer as their backup, and `kept` still reads it
 for a step that was not converted.)
 
+**Into the owner's git history** ([take_in.py](../ingest/management/commands/take_in.py),
+[export_steps.py](../desk/management/commands/export_steps.py)). The steps of a course
+are a history on the site; the owner's `courses/` folder is a git repository. `take_in`
+joins the two: it asks the server for every step that is live and not merged
+(`handins.pending`, printed by `export_steps` as one JSON document: the steps, and each
+file's bytes once), and makes each a commit there, with the step's author (a name, and
+an address that is not one), its time and its summary. It holds what arrives to the same
+rules as a zip: only a course's files (`handin.check`), each step whole (its files give
+the version it claims), the newest valid under the full check, the owner's files at the
+version the steps began from, and nothing uncommitted in the folder. The last commit
+carries `.merged`, so the next `publish` settles the steps as it would after
+`import_course`.
+
 **Where the site reads a course from** ([ingest/live.py](../ingest/live.py)). The owner's
 course files are a folder the application cannot write to, replaced as a whole by
 `publish`. A hand-in therefore never touches them. `live.folders()` gives the folder to
@@ -889,6 +902,10 @@ a page fills the `editing` block with what it offers (`Edit this page`, `New lec
   is not a picture is refused; an upload joins the course with the text that shows it.
   [test_years.py](../editor/tests/test_years.py): the year turns in October; a year
   added empty and as a copy; a full sync keeps it; `import_course` makes its folder.
+- [desk/tests/test_take_in.py](../desk/tests/test_take_in.py): in a courses folder
+  that is a git repository, three steps by two people become three commits with their
+  authors and dates; a course the owner changed, uncommitted work, a step that did not
+  arrive whole and a path outside the course are refused; the SSH command line.
   How versions are kept
   (`KeptTests`) and that converted steps are the same course to the byte
   (`ConvertedTests`, which runs the migration's function) are with the hand-ins.

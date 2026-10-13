@@ -538,6 +538,42 @@ def overlay(base, *, settle=False, notes=None, only=None):
     return result
 
 
+def pending(slugs=None):
+    """What the owner's course files do not have yet: every step that is on the site and
+    not merged, oldest first, each with the files it kept. For `manage.py export_steps`,
+    which hands it to `take_in` on the owner's computer. Reads only.
+
+    Returns (steps, {sha: bytes}). A step is a plain dict (who, when, what it did, the
+    version before and after, and its files as {name: sha}); the bytes of every file are
+    in the second value, each once.
+    """
+    rows = HandIn.objects.filter(status=HandIn.Status.LIVE).select_related("user")
+    if slugs:
+        rows = rows.filter(slug__in=slugs)
+    steps, pool = [], {}
+    for row in rows.order_by("created_at", "pk"):
+        names = {}
+        for name, data in kept(row).items():
+            sha = blobs.sha_of(data)
+            pool.setdefault(sha, data)
+            names[name] = sha
+        steps.append(
+            {
+                "id": row.pk,
+                "slug": row.slug,
+                "series": row.series,
+                "via": row.via,
+                "at": (row.updated_at or row.created_at).isoformat(timespec="seconds"),
+                "by": (row.user.get_full_name() if row.user else "") or "An educator",
+                "summary": row.summary,
+                "base": row.base_version,
+                "version": row.version,
+                "files": names,
+            }
+        )
+    return steps, pool
+
+
 def root_base(record):
     """The version the owner's files had when the hand-ins now on the site began: what
     `import_course` compares the owner's own files with."""

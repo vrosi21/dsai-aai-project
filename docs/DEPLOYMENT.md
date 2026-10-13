@@ -159,10 +159,26 @@ that no hand-in can touch.
 
 **What you do about a hand-in.** Nothing, for it to be live. Two things remain yours:
 
-- *Taking it into your course files.* The site shows the course as handed in, from a
-  folder of its own; your files do not have the additions until you fetch them. In the
-  admin, under Hand-ins, download the newest one for the course (each holds the whole
-  course as it stood) and run
+- *Taking it into your course files.* The site shows the course as changed there (a
+  zip handed in, or edits made in the editor), from a folder of its own; your files do
+  not have those changes until you fetch them. All of them at once, as git history:
+  ```
+  uv run --env-file .env python manage.py take_in --check     what there is to take
+  uv run --env-file .env python manage.py take_in             take it
+  ```
+  It asks the server for every step your files lack (over the SSH connection `publish`
+  uses; on the server it runs `export_steps`, which only reads) and makes each one a
+  commit in `courses/`: the person who made the step as author, by name, with the
+  time they made it, and what it did as the message (`rl: 1 new file, 12 lines added`).
+  `git log` in `courses/` is then the course's history as it happened on the site. A
+  year that was started on the site gets its folder made. It commits and nothing more:
+  it does not push, load or publish. Read the log, `sync_content`, `publish`.
+
+  It takes a course only if your files are the version its steps began from, and its
+  folder has no uncommitted changes. A course you changed yourself meanwhile is left
+  alone and named. For that one, or to take a single step by hand: in the admin, under
+  Hand-ins, download the newest one for the course (each holds the whole course as it
+  stood) and run
   ```
   uv run python manage.py import_course rl-handin-12.zip
   ```
@@ -170,9 +186,9 @@ that no hand-in can touch.
   published it, your files simply become the educators' version: what they added,
   changed and removed. If you have, it takes what the zip adds and stops at any file
   that differs otherwise, for you to decide (`--theirs`, `--mine`). Read the diff,
-  `sync_content rl`, commit in `courses/`, and `publish`. The command leaves a small file
-  in the course folder, `.merged`, saying which hand-in your files now include; commit
-  it too. `publish` sends it along, and the site then marks the hand-in merged and drops
+  `sync_content rl`, commit in `courses/`, and `publish`. Either command leaves a small
+  file in the course folder, `.merged`, saying which step your files now include
+  (`take_in` commits it with the last step; after `import_course`, commit it too). `publish` sends it along, and the site then marks the hand-in merged and drops
   its own copy. If you publish without doing this, nothing is lost: the site keeps
   showing the hand-in, and the publish report says which courses lack hand-ins.
 - *Taking it off the site.* Hand-ins in the admin, tick it, **Take off the site**. It and
