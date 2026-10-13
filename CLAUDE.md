@@ -73,6 +73,7 @@ uv run python manage.py startcourse <slug> --title "…" --code X --year "2026-2
 uv run python manage.py export_schemas                regenerate docs/schemas and fields.md
 uv run python manage.py export_authoring educator-kit  rebuild the educator kit (then commit and push there)
 uv run python manage.py import_course <zip>           take in the course files an educator handed in
+                                                      (or a year that was started on the site)
 uv run python manage.py test                          all tests
 uv run ruff check . && uv run ruff format .           lint and format
 ```
@@ -125,6 +126,11 @@ To sign in locally press "Development sign-in" on the landing page.
 - One course folder is one academic year. When a course is taught again, the new year
   is a new folder whose `course.yaml` says `series: <first folder>`; never rewrite a
   finished year in place, because people's progress is keyed to its ids.
+- Which years a course can have is worked out, never listed: from
+  `FIRST_ACADEMIC_YEAR` to the year today falls in (`catalog/editions.py`). A year can
+  begin on the site (`desk.handins.begin`): until the owner runs `import_course` on it,
+  which makes its folder, it exists only as steps in the database. A full sync must
+  keep such a course (`handins.overlay` lists it), not remove it as folderless.
 - The database holds two kinds of table. `catalog_*` is a cache of the course files and may
   be rebuilt at will. Users, `progress_*`, `accounts_*` (the courses each person chose,
   what they have been shown) and `desk_*` (requests, applications, educators, the

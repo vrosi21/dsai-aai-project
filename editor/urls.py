@@ -82,6 +82,7 @@ def shelf_urls(key, lead=None, name="<slug:name>"):
 
 urlpatterns += [
     # The course's own file: what its educators decide, and what the owner does.
+    path("<slug:course>/years/", whole.years, name="years"),
     path("<slug:course>/about/", whole.about, name="about"),
     path("<slug:course>/settings/", whole.course_settings, name="course_settings"),
     # An exam is a folder: its own page (one form), and its papers, each a file of

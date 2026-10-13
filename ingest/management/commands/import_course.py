@@ -94,16 +94,30 @@ class Command(BaseCommand):
         except handin.HandInError as error:
             raise CommandError(f"Refused: {error}. Nothing was changed.") from error
 
-        target = find_courses([settings.COURSES_DIR]).get(slug)
-        if target is None:
-            raise CommandError(
-                f"There is no course `{slug}` here. A hand-in can change a course, not "
-                "create one: make it with startcourse first."
+        here = find_courses([settings.COURSES_DIR])
+        target = here.get(slug)
+        born = target is None
+        if born:
+            # A year that was started on the site: it names the course it is a year of,
+            # and its folder is made beside that one.
+            series = handin.series_of(files["course.yaml"])
+            beside = here.get(series)
+            if beside is None:
+                raise CommandError(
+                    f"There is no course `{slug}` here, and its course.yaml does not name a "
+                    "course of yours that it is another year of (`series`). A hand-in can "
+                    "change a course or add a year to one, not create a course: make it "
+                    "with startcourse first."
+                )
+            target = beside.parent / slug
+        mine = {} if born else handin.files_of(target)
+        changed = (
+            []
+            if born
+            else handin.protected_changes(
+                mine["course.yaml"].decode("utf-8"),
+                files["course.yaml"].decode("utf-8", errors="replace"),
             )
-        mine = handin.files_of(target)
-        changed = handin.protected_changes(
-            mine["course.yaml"].decode("utf-8"),
-            files["course.yaml"].decode("utf-8", errors="replace"),
         )
         if changed:
             raise CommandError(
@@ -127,7 +141,7 @@ class Command(BaseCommand):
 
         # Are your files the version the hand-ins started from? Then theirs simply
         # follows yours, and the course can be replaced as a whole.
-        untouched = bool(note.get("base")) and handin.version_of(mine) == note["base"]
+        untouched = born or (bool(note.get("base")) and handin.version_of(mine) == note["base"])
         write, remove, kept, both = {}, [], [], []
         if untouched or options["theirs"]:
             write = {name: data for name, data in files.items() if mine.get(name) != data}
@@ -162,8 +176,12 @@ class Command(BaseCommand):
         if kept:
             summary += f"; {len(kept)} of your files left as they are"
         if options["check"]:
-            self.stdout.write(f"{slug}: valid. {summary}. Nothing was changed (--check).")
+            where = f" Its folder would be made at {target}." if born else ""
+            self.stdout.write(f"{slug}: valid. {summary}.{where} Nothing was changed (--check).")
             return
+        if born:
+            target.mkdir(parents=True)
+            self.stdout.write(f"{slug}: a year started on the site. Its folder is {target}.")
         marker = target / MERGED
         version = note.get("version") or handin.version_of(files)
         if not write and not remove:

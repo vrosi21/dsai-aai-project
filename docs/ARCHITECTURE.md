@@ -765,6 +765,38 @@ The two addresses that take or give a file begin with `/edit/image/`, ahead of t
 course, so that `BODY_LIMITS` (9 MB there, for someone signed in) and `RATE_LIMITS` (30
 a minute) can name them.
 
+### Another year of a course
+
+A course is written once per academic year; each year is a course of its own (its own
+address, content and progress) in one `series`. Which years there can be is not listed
+anywhere: [catalog/editions.py](../catalog/editions.py) works it out. `current_year()`
+is the year today falls in (it turns in `settings.ACADEMIC_YEAR_STARTS`, October), and
+`years()` runs from `settings.FIRST_ACADEMIC_YEAR` to it, so each October there is one
+more. `missing(course)` are those a course has no edition for, and the year switch at the
+top of a course's page offers **Add a year** to the people who write it when there are
+any.
+
+**Adding one** (`editor.whole.years`) makes a year that begins on the site. No folder
+among the owner's course files stands behind it, and the application never writes one.
+It is `desk.handins.begin`: the first step of a new course's history, with nothing
+before it (`base_version` empty). Its `course.yaml` is made from the year it was added
+beside (title, code, topics, settings; the year and the `series` set), and its content
+is empty or a copy of another year's. `handins.overlay` shows a course whose first step
+on the site has no base although the owner has no folder for it; any other course
+without an owner's folder stays gone, as before. Taking that first step back takes the
+year back.
+
+**The owner's files.** `import_course` used to refuse a zip of a course it did not know.
+It now takes one whose `course.yaml` names, as its `series`, a course the owner has, and
+makes the folder beside that course (so in the same `semester-N`). After the next
+`publish` the site reads the year from there and lets go of its own copy, as with any
+hand-in.
+
+**Which year is the course.** `editions.latest` keeps one course per series for the
+dashboard and the navigation: the newest year *that has something in it*
+(`Course.has_content`, noted by the sync), or the newest if none has. A year someone has
+just added therefore does not hide last year's notes.
+
 ### The history: versions of a course
 
 `/edit/<course>/history/` and the pages under it, for the same people as the editor
@@ -855,6 +887,8 @@ a page fills the `editing` block with what it offers (`Edit this page`, `New lec
   [test_images.py](../editor/tests/test_images.py): a photo made as a phone writes one
   (on its side, with a position) comes out upright, as WebP, without the position; what
   is not a picture is refused; an upload joins the course with the text that shows it.
+  [test_years.py](../editor/tests/test_years.py): the year turns in October; a year
+  added empty and as a copy; a full sync keeps it; `import_course` makes its folder.
   How versions are kept
   (`KeptTests`) and that converted steps are the same course to the byte
   (`ConvertedTests`, which runs the migration's function) are with the hand-ins.

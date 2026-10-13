@@ -23,6 +23,7 @@
 
 <div class="desk">
   {% if saved == "same" %}<p class="notice" role="status">{% icon "info" %}Nothing was changed, so there was nothing to save.</p>
+  {% elif saved == "year" %}<p class="notice" role="status">{% icon "check" %}This is the new year: {{ course.year_label }}. It is on the site now, and what you write here belongs to it alone.</p>
   {% elif saved %}<p class="notice" role="status">{% icon "check" %}Saved. It is on the site now.</p>{% endif %}
   {% if deleted %}<p class="notice" role="status">{% icon "check" %}Removed. It is in the course's <a class="link" href="{% url 'editor:history' course.slug %}">history</a>, should it be wanted back.</p>{% endif %}
 

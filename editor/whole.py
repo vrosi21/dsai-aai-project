@@ -12,15 +12,17 @@ import re
 from dataclasses import dataclass
 
 from django.http import Http404
-from django.shortcuts import render
+from django.shortcuts import redirect, render
 from django.urls import reverse
 
-from ingest import schemas
+from catalog import editions
+from desk import handins
+from ingest import handin, schemas, yamledit
 
-from . import items, schema
+from . import items, schema, source
 from .items import SHELVES, Place
 from .shelves import RESERVED, _course_refs, _save, _seen
-from .views import GONE, _open
+from .views import GONE, _open, _refusal, _tell
 
 SLUG = re.compile(schemas.SLUG_PATTERN)
 
@@ -331,3 +333,61 @@ def course_settings(request, course):
         overline="For the owner of the site",
         done="settings",
     )
+
+
+# ---- another year of the course --------------------------------------------------------------
+
+# What a new year takes over from the year it is made beside: what the course is. The
+# year and the series are set; the rest (its content) is copied only if that is asked for.
+CARRIED = ("title", "code", "semester", "enabled", "has_educator", "hue", "order",
+           "description", "topics")  # fmt: skip
+
+
+def _new_year(course, year, series, copied):
+    """The files a new year begins with: a course.yaml of its own, and, if a year to
+    copy was named, everything that year has."""
+    model = copied or course
+    about = items.read(model, COURSE) or {}
+    mine = {key: about[key] for key in CARRIED if key in about} | {"year": year, "series": series}
+    ordered = {key: mine[key] for key in items.keys_of(schemas.CourseFile) if key in mine}
+    files = {"course.yaml": yamledit.dump(ordered).encode("utf-8")}
+    if copied is not None:
+        there = handin.files_of(source.folder(copied))
+        files |= {name: data for name, data in there.items() if name != "course.yaml"}
+    return files
+
+
+def years(request, course):
+    """Add a year of this course that it does not exist in yet: any from the
+    programme's first to the current one (catalog/editions.py). The new year is a course
+    of its own, with its own address and its own progress, in the same series."""
+    course, context = _open(request, course)
+    series = course.series or course.slug
+    have = editions.of(course)
+    can_be = editions.missing(course, among=have)
+    refused, problem = None, ""
+    if request.method == "POST":
+        year = request.POST.get("year", "")
+        copied = next((e for e in have if e.slug == request.POST.get("copy")), None)
+        if year not in can_be:
+            problem = "Choose one of the years listed."
+        else:
+            slug = f"{series}-{year[:4]}"
+            try:
+                step = handins.begin(
+                    request.user, series, slug, _new_year(course, year, series, copied)
+                )
+            except handins.Refused as error:
+                refused = _refusal(error, "course")
+            else:
+                _tell(request, course, step, True)
+                return redirect(f"{reverse('editor:overview', args=[slug])}?saved=year")
+    context.update(
+        years=[(year, year.replace("-", "/")) for year in can_be],
+        have=have,
+        first=editions.years()[-1].replace("-", "/"),
+        now=editions.current_year().replace("-", "/"),
+        refused=refused,
+        problem=problem,
+    )
+    return render(request, "editor/years.html", context)

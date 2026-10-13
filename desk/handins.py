@@ -198,6 +198,50 @@ def take(user, course, upload, *, confirmed=False):
     return record
 
 
+def begin(user, series, slug, files):
+    """A course that starts on the site: another year of `series`, with no folder among
+    the owner's course files behind it yet. `files` is the whole of it ({name: bytes}),
+    course.yaml included.
+
+    It is the first step of that course's history, with nothing before it. Until the
+    owner takes it into the course files (import_course makes its folder) and publishes,
+    the site shows it from this step and those that follow, as it shows any hand-in.
+    Returns the step; raises Refused, and then nothing was made.
+    """
+    if not user.is_staff and not Educator.objects.filter(user=user, series=series).exists():
+        raise Refused("bad", ["You do not write this course."])
+    with lock(slug):
+        taken = live.folder(slug) is not None or HandIn.objects.filter(slug=slug).exists()
+        if taken:
+            raise Refused("conflict", ["There is a course at this address already."])
+        try:
+            handin.check(files, MAX_UNPACKED)
+        except handin.HandInError as error:
+            raise Refused("bad", [f"{error}."]) from error
+        target = _go_live(slug, files)
+        kept_as = blobs.put(files)
+        step = HandIn.objects.create(
+            user=user,
+            series=series,
+            slug=slug,
+            via=HandIn.Via.SITE,
+            base_version="",  # born here: this is what says so (see overlay)
+            version=handin.version_of(files),
+            new_files=sorted(files),
+            files=kept_as,
+            trail=[{"at": timezone.now().isoformat(timespec="seconds"), "files": kept_as}],
+        )
+        (target / MARKER).write_text(_mark(step), encoding="utf-8")
+    notices.tell(
+        [owner for owner in notices.owners() if owner.pk != user.pk],
+        f"A new year was started on the site: {slug}",
+        "It is live. To have it in your course files, download it in the admin and run "
+        "import_course.",
+        url=f"/admin/desk/handin/{step.pk}/change/",
+    )
+    return step
+
+
 def _go_live(slug, files):
     """Make `files` the course on the site, if they are a valid course. Returns the folder
     they are in now; raises Refused("invalid") with the importer's report otherwise, and
@@ -249,6 +293,8 @@ def before(row):
     (a step from before the site kept it, whose starting point has since moved on)."""
     if row.before:
         return blobs.get(row.before)
+    if not row.base_version and row.via == HandIn.Via.SITE and row.files:
+        return {}  # the step a year began with on the site: before it there was nothing
     return files_at(row.slug, row.base_version) if row.base_version else None
 
 
@@ -439,14 +485,16 @@ def overlay(base, *, settle=False, notes=None, only=None):
         rows = list(rows.order_by("created_at", "pk"))
     except DatabaseError:  # the table is not there yet: a first migrate is still to come
         return base
-    result, newest, count = dict(base), {}, {}
+    result, newest, count, born = dict(base), {}, {}, set()
     for row in rows:
+        if row.slug not in newest and not row.base_version:
+            born.add(row.slug)  # its first step had nothing before it: it began here
         newest[row.slug] = row
         count[row.slug] = count.get(row.slug, 0) + 1
 
     for slug, row in newest.items():
         owner = base.get(slug)
-        if owner is None:
+        if owner is None and slug not in born:
             continue  # the owner has taken the course away; there is nothing to show
         if only is not None and not settle:
             ready = _working(row)
@@ -454,6 +502,16 @@ def overlay(base, *, settle=False, notes=None, only=None):
                 result[slug] = ready
                 continue
         files = kept(row)
+        if owner is None:
+            # A year started on the site, which the owner's files have no folder for.
+            result[slug] = _unpacked(row, files)
+            if notes is not None:
+                notes[slug] = (
+                    "a year that was started on the site: your course files have no "
+                    "folder for it. Take it in (admin, Hand-ins, download; then "
+                    "import_course, which makes the folder) and publish again."
+                )
+            continue
         if _included(owner, row, files):
             if settle:
                 HandIn.objects.filter(slug=slug, status=HandIn.Status.LIVE).update(
@@ -502,6 +560,13 @@ def withdraw(record, by=None):
     later.update(status=HandIn.Status.WITHDRAWN, settled_at=timezone.now())
     folder = live.folders(settle=True).get(record.slug)
     report = sync_course(folder, force=True) if folder else None
+    if folder is None:
+        # What was taken back is the step a year began with: without it there is no
+        # such course. Its rows go now, not at the next full sync.
+        from catalog.models import Course
+
+        Course.objects.filter(slug=record.slug).delete()
+        shutil.rmtree(root() / record.slug, ignore_errors=True)
     # Everyone who writes the course now has a copy that is ahead of the site.
     told = {*authors, *notices.educators_of(record.series)} - {by}
     notices.tell(

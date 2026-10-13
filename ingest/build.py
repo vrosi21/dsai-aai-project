@@ -350,6 +350,7 @@ class Builder:
         self._assessments(plan)
         self._reference(plan)
         self._memory(plan)
+        plan.course["has_content"] = any(plan.counts().values())
         return plan
 
     def _sources(self, doc):

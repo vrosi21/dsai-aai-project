@@ -1,0 +1,67 @@
+{% extends "editor/base.html" %}
+{% load ui %}
+{% comment %} Add a year of the course (editor.whole.years). Which years there can be is worked out
+   from today's date and one setting (catalog/editions.py); this page offers those the
+   course has no edition for. {% endcomment %}
+
+{% block title %}Add a year · {{ course.title }}{% endblock %}
+{% block crumbs %}<a href="{{ course.get_absolute_url }}">{{ course.title }}</a>{% icon "next" %}<a href="{% url 'editor:overview' course.slug %}">Edit</a>{% icon "next" %}<span>Add a year</span>{% endblock %}
+{% block inner_class %}page__inner--narrow{% endblock %}
+
+{% block content %}
+<header class="dash-head">
+  <div>
+    <p class="overline">{{ course.code }} · {{ course.title }}</p>
+    <h1>Add a year</h1>
+    <p class="dash-head__lead">A course is written once per academic year: each year has its own notes, cards and papers, and its own progress for the people who studied it then. This course can exist in every year from {{ first }} to {{ now }}.</p>
+  </div>
+  <div class="dash-head__tools no-print">
+    <a class="btn btn--outlined btn--small" href="{% url 'editor:overview' course.slug %}">{% icon "back" %}Edit</a>
+  </div>
+</header>
+
+<div class="desk">
+  {% if refused %}
+  <div class="refused" role="alert">
+    <p class="refused__head">{% icon "warning" %}The year was not added.</p>
+    {% if refused.kind == "invalid" %}<pre class="refused__report">{% for line in refused.lines %}{{ line }}
+{% endfor %}</pre>{% else %}{% for line in refused.lines %}<p>{{ line }}</p>{% endfor %}{% endif %}
+  </div>
+  {% endif %}
+
+  <section class="edit-section">
+    <div class="edit-section__head"><h2>The years it has</h2></div>
+    <div class="chips">
+      {% for edition in have %}<a class="chip{% if edition.pk == course.pk %} chip--on{% endif %}" href="{% url 'editor:overview' edition.slug %}">{{ edition.year_label|default:"No year" }}</a>{% endfor %}
+    </div>
+  </section>
+
+  {% if years %}
+  <form class="form plate" method="post">
+    {% csrf_token %}
+    <h2 class="plate__title">A year it does not have yet</h2>
+    <div class="form__pair">
+      <div class="form__field">
+        <label for="year">Academic year</label>
+        <select name="year" id="year" required>
+          {% for value, label in years %}<option value="{{ value }}">{{ label }}</option>{% endfor %}
+        </select>
+        {% if problem %}<p class="form__error" role="alert">{{ problem }}</p>{% endif %}
+      </div>
+      <div class="form__field">
+        <label for="copy">Begin with</label>
+        <select name="copy" id="copy">
+          <option value="">Nothing: an empty course</option>
+          {% for edition in have %}{% if edition.has_content %}<option value="{{ edition.slug }}">A copy of {{ edition.year_label|default:"this course" }}</option>{% endif %}{% endfor %}
+        </select>
+        <p class="form__hint">A copy is a start to rework, not a link: the two years are changed separately from then on.</p>
+      </div>
+    </div>
+    <p class="form__hint">The new year takes this course's title, code, topics and settings, and is open to students exactly when this course is. It is on the site at once; the dashboard keeps opening the newest year that has something in it.</p>
+    <div class="form__foot"><button class="btn btn--filled" type="submit">Add the year</button></div>
+  </form>
+  {% else %}
+  <p class="notice" role="status">{% icon "check" %}This course exists in every year there is, from {{ first }} to {{ now }}. The next one can be added when it begins.</p>
+  {% endif %}
+</div>
+{% endblock %}

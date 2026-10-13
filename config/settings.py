@@ -208,6 +208,12 @@ SITE_URL = os.environ.get("DSAI_SITE_URL") or (
     f"https://{ALLOWED_HOSTS[0]}" if ALLOWED_HOSTS and not DEBUG else "http://127.0.0.1:8000"
 )
 
+# Academic years (catalog/editions.py). A course can exist in every year from the
+# programme's first to the one that is running now, and which one that is follows from
+# the date: a year begins in the month named here, so in October 2026 it is 2026-27.
+FIRST_ACADEMIC_YEAR = os.environ.get("DSAI_FIRST_ACADEMIC_YEAR", "2024-25")
+ACADEMIC_YEAR_STARTS = int(os.environ.get("DSAI_ACADEMIC_YEAR_STARTS", "10"))
+
 # The owner's assistant bot, told whenever a request or an application arrives
 # (desk/notify.py). Both come from the environment: the address is the server's own,
 # so like every server address it is kept out of the repository. Empty: no messages.

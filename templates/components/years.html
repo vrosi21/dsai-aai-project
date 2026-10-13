@@ -1,11 +1,13 @@
 {% comment %} The academic years a course exists in, newest first (`editions`, from load_course()).
    The year on screen is marked; the others are links to that year's own course page. A
    course with a single year shows it as a label. {% endcomment %}
-{% if course.year or editions|length > 1 %}
+{% if course.year or editions|length > 1 or missing_years %}
 <nav class="chips years" aria-label="Academic year">
   {% for edition in editions %}
   {% if edition.pk == course.pk %}<span class="chip chip--on" aria-current="true">{{ edition.year_label|default:"No year" }}</span>
   {% else %}<a class="chip" href="{{ edition.get_absolute_url }}">{{ edition.year_label|default:"No year" }}</a>{% endif %}
   {% endfor %}
+  {# For the people who write the course, when a year it could exist in has no edition. #}
+  {% if missing_years %}<a class="chip chip--primary no-print" href="{% url 'editor:years' course.slug %}">Add a year</a>{% endif %}
 </nav>
 {% endif %}

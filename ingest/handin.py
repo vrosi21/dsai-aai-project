@@ -423,6 +423,16 @@ def extends(old, new, name):
     return before is not None and after is not None and _kept(before, after)
 
 
+def series_of(course_yaml):
+    """The course a course.yaml (bytes) says it is another year of, or ""."""
+    try:
+        data = yaml.safe_load(course_yaml.decode("utf-8", errors="replace"))
+    except yaml.YAMLError:
+        return ""
+    series = data.get("series") if isinstance(data, dict) else None
+    return series if isinstance(series, str) else ""
+
+
 def topic_ids(course_yaml):
     """The topic ids in the text of a course.yaml; [] if it cannot be read."""
     try:

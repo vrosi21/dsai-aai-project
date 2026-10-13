@@ -42,6 +42,11 @@ def load_course(request, slug, active=""):
         # The years this course exists in, newest first, for the switch at the top.
         # Lazy: only the course's front page shows the switch, so only it pays the query.
         "editions": SimpleLazyObject(lambda: editions.of(course)),
+        # The years it could exist in and does not: offered to those who may add one.
+        # Lazy as well, and worked out from the list above, so it costs no query more.
+        "missing_years": SimpleLazyObject(
+            lambda: editions.missing(course, among=list(context["editions"])) if can_edit else []
+        ),
         "stale": _files_changed(course),
     }
     return course, context

@@ -34,6 +34,10 @@ class Course(models.Model):
 
     # Set by sync_content. The hash lets it skip a course whose files have not changed;
     # the time is when the files were last compared with the database.
+    # Whether anything is written up for it, noted by the sync. A list of courses can
+    # then tell without looking into each one (catalog/editions.py prefers the newest
+    # year that has something in it).
+    has_content = models.BooleanField(default=False)
     content_hash = models.CharField(max_length=64, blank=True)
     synced_at = models.DateTimeField(null=True, blank=True)
 
