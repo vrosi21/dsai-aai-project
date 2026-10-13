@@ -1,0 +1,47 @@
+{% extends "editor/base.html" %}
+{% load ui fields %}
+{% comment %} One container and its items (editor.shelves.container): a deck with its cards, a
+   problem set with its questions, the glossary with its terms. {% endcomment %}
+
+{% block title %}{{ title }} · Edit · {{ course.title }}{% endblock %}
+{% block crumbs %}<a href="{{ course.get_absolute_url }}">{{ course.title }}</a>{% icon "next" %}<a href="{% url 'editor:overview' course.slug %}">Edit</a>{% if not shelf.single %}{% icon "next" %}<a href="{{ home }}">{{ shelf.title }}</a>{% endif %}{% icon "next" %}<span>{{ title }}</span>{% endblock %}
+{% block inner_class %}page__inner--narrow{% endblock %}
+
+{% block content %}
+<header class="dash-head">
+  <div>
+    <p class="overline">{{ shelf.noun|capfirst }}{% if name and shelf.folder %} · <code>{{ name }}</code>{% endif %}</p>
+    <h1>{{ title }}</h1>
+    <p class="dash-head__lead">{{ rows|length }} {{ shelf.one }}{{ rows|length|pluralize }}{% if settings.topic %} · topic {{ settings.topic }}{% endif %}{% if settings.lecture %} · lecture {{ settings.lecture }}{% endif %}{% if settings.kind %} · {{ settings.kind }}{% endif %}{% if settings.description %}. {{ settings.description }}{% endif %}</p>
+  </div>
+  <div class="dash-head__tools no-print">
+    <a class="btn btn--outlined btn--small" href="{% if shelf.single %}{% url 'editor:overview' course.slug %}{% else %}{{ home }}{% endif %}">{% icon "back" %}{% if shelf.single %}Edit{% else %}{{ shelf.title }}{% endif %}</a>
+    {% if public %}<a class="btn btn--outlined btn--small" href="{{ public }}">View</a>{% endif %}
+    {% if settings_url %}<a class="btn btn--outlined btn--small" href="{{ settings_url }}">{% icon "tune" %}Settings</a>{% endif %}
+    <a class="btn btn--tonal btn--small" href="{{ add }}">New {{ shelf.one }}</a>
+  </div>
+</header>
+
+<div class="desk">
+  {% if saved == "same" %}<p class="notice" role="status">{% icon "info" %}Nothing was changed, so there was nothing to save.</p>
+  {% elif saved == "new" %}<p class="notice" role="status">{% icon "check" %}Made. It is on the site now; add the next {{ shelf.one }} when you are ready.</p>
+  {% elif saved == "settings" %}<p class="notice" role="status">{% icon "check" %}Saved. It is on the site now.</p>
+  {% elif saved %}<p class="notice" role="status">{% icon "check" %}Saved <code>{{ saved }}</code>. It is on the site now.</p>{% endif %}
+  {% if removed %}<p class="notice" role="status">{% icon "check" %}Removed <code>{{ removed }}</code>. It is in the course's <a class="link" href="{% url 'editor:history' course.slug %}">history</a>, should it be wanted back.</p>{% endif %}
+
+  {% if rows %}
+  <div class="list">
+    {% for row in rows %}
+    <div class="list-item item-row">
+      <a class="list-item__body" href="{{ row.edit }}"><strong>{{ row.name|first_line }}</strong><span class="faint">{{ row.id }}</span></a>
+      <span class="list-item__meta"><a class="link" href="{{ row.edit }}">Edit</a><a class="link editor__remove" href="{{ row.remove }}">Remove</a></span>
+    </div>
+    {% endfor %}
+  </div>
+  {% else %}
+  <p class="faint">No {{ shelf.one }}s yet. <a class="link" href="{{ add }}">Write the first one.</a></p>
+  {% endif %}
+
+  {% if remove_url %}<p class="editor__more"><a class="link editor__remove" href="{{ remove_url }}">Remove this {{ shelf.noun }}</a></p>{% endif %}
+</div>
+{% endblock %}

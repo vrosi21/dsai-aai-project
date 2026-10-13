@@ -9,7 +9,7 @@ import Alpine from "../vendor/alpine/alpine.esm.min.js";
 
 import bell from "./components/bell.js";
 import cover from "./components/cover.js";
-import editor, { rows } from "./components/editor.js";
+import editor, { repeat, rows } from "./components/editor.js";
 import flashcards from "./components/flashcards.js";
 import news from "./components/news.js";
 import nextUp from "./components/nextup.js";
@@ -52,6 +52,7 @@ Alpine.data("notice", notice);
 Alpine.data("bell", bell);
 Alpine.data("editor", editor);
 Alpine.data("rows", rows);
+Alpine.data("repeat", repeat);
 for (const [name, component] of Object.entries(widgets)) Alpine.data(name, component);
 
 // Typeset the maths that arrived in the page's HTML, then start Alpine.

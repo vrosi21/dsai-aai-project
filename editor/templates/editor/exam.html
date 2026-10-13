@@ -1,0 +1,51 @@
+{% extends "editor/base.html" %}
+{% load ui %}
+{% comment %} One exam in the editor (editor.whole.exam): its own page is one form (about), and
+   each of its papers is a file of questions, edited like a problem set. {% endcomment %}
+
+{% block title %}{{ about.title|default:exam }} · Edit · {{ course.title }}{% endblock %}
+{% block crumbs %}<a href="{{ course.get_absolute_url }}">{{ course.title }}</a>{% icon "next" %}<a href="{% url 'editor:overview' course.slug %}">Edit</a>{% icon "next" %}<a href="{% url 'editor:exams' course.slug %}">Exams</a>{% icon "next" %}<span>{{ about.title|default:exam }}</span>{% endblock %}
+{% block inner_class %}page__inner--narrow{% endblock %}
+
+{% block content %}
+<header class="dash-head">
+  <div>
+    <p class="overline">Exam · <code>{{ exam }}</code>{% if about.kind %} · {{ about.kind }}{% endif %}{% if about.date %} · {{ about.date|date:"j M Y" }}{% endif %}</p>
+    <h1>{{ about.title|default:exam }}</h1>
+    <p class="dash-head__lead">Its page shows every card, problem, formula and hook whose topic is in its scope, so only what cannot be derived is written: the format, what carries the paper, a plan, what is likely to be asked.</p>
+  </div>
+  <div class="dash-head__tools no-print">
+    <a class="btn btn--outlined btn--small" href="{% url 'editor:exams' course.slug %}">{% icon "back" %}Exams</a>
+    <a class="btn btn--outlined btn--small" href="{{ public }}">View</a>
+    <a class="btn btn--tonal btn--small" href="{{ about_url }}">{% icon "paper" %}Edit the exam's page</a>
+  </div>
+</header>
+
+<div class="desk">
+  {% if saved == "same" %}<p class="notice" role="status">{% icon "info" %}Nothing was changed, so there was nothing to save.</p>
+  {% elif saved == "new" %}<p class="notice" role="status">{% icon "check" %}Made. It is on the site now.</p>
+  {% elif saved %}<p class="notice" role="status">{% icon "check" %}Saved. It is on the site now.</p>{% endif %}
+  {% if removed %}<p class="notice" role="status">{% icon "check" %}Removed. It is in the course's <a class="link" href="{% url 'editor:history' course.slug %}">history</a>, should it be wanted back.</p>{% endif %}
+
+  <section class="edit-section">
+    <div class="edit-section__head">
+      <h2>Papers</h2>
+      <a class="btn btn--small btn--tonal" href="{{ new_paper }}">New paper</a>
+    </div>
+    {% if rows %}
+    <div class="list">
+      {% for row in rows %}
+      <a class="list-item" href="{{ row.url }}">
+        <span class="list-item__body"><strong>{{ row.title }}</strong><span class="faint">{{ row.name }}{% if row.kind %} · {{ row.kind }}{% endif %}</span></span>
+        <span class="list-item__meta">{{ row.count }} question{{ row.count|pluralize }}{% icon "next" %}</span>
+      </a>
+      {% endfor %}
+    </div>
+    {% else %}
+    <p class="faint">No papers yet: a past paper opens worked, a mock one ready to sit against the clock.</p>
+    {% endif %}
+  </section>
+
+  <p class="editor__more"><a class="link editor__remove" href="{{ remove_url }}">Remove this exam and its papers</a></p>
+</div>
+{% endblock %}

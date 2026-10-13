@@ -225,3 +225,41 @@ def preview(course, name, body, takeaways=(), *, document=True):
         for issue in report.issues
     ]
     return {"html": done.html, "takeaways": points, "problems": problems, "words": done.words}
+
+
+def preview_fields(course, name, fields):
+    """The same for the texts of a form about a YAML file: each of `fields`
+    ({"name", "label", "text", "cloze"}) rendered as the importer would render it, with
+    what the renderer objected to in it."""
+    where = folder(course)
+    report = Report(course=course.slug)
+    renderer = Renderer(
+        report=report,
+        resolver=resolver(course),
+        assets=Assets(course.slug),
+        content_root=where / "content",
+    )
+    shown = []
+    for part in fields:
+        before = len(report.issues)
+        done = renderer.render(
+            yamledit.clean(part["text"]),
+            file=name,
+            where=part["label"],
+            base_dir=(where / name).parent,
+            cloze=bool(part.get("cloze")),
+        )
+        problems = [
+            {
+                "level": issue.level,
+                "name": part["name"],
+                "where": part["label"],
+                "message": issue.message,
+                "hint": issue.hint,
+            }
+            for issue in report.issues[before:]
+        ]
+        shown.append(
+            {"name": part["name"], "label": part["label"], "html": done.html, "problems": problems}
+        )
+    return shown

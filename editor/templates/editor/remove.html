@@ -1,0 +1,49 @@
+{% extends "editor/base.html" %}
+{% load ui fields %}
+{% comment %} Asked before something is removed from a YAML file, or a whole file with it
+   (editor.shelves.remove_item, remove_container; editor.whole.remove). It names the ids
+   that go: what people have marked about those items goes with them. {% endcomment %}
+
+{% block title %}Remove · {{ course.title }}{% endblock %}
+{% block crumbs %}<a href="{{ course.get_absolute_url }}">{{ course.title }}</a>{% icon "next" %}<a href="{% url 'editor:overview' course.slug %}">Edit</a>{% for label, url in crumbs %}{% icon "next" %}<a href="{{ url }}">{{ label }}</a>{% endfor %}{% icon "next" %}<span>Remove</span>{% endblock %}
+{% block inner_class %}page__inner--narrow{% endblock %}
+
+{% block content %}
+<header class="dash-head">
+  <div>
+    <p class="overline">Remove this {{ what }}</p>
+    <h1>{{ heading|first_line }}</h1>
+    <p class="dash-head__lead">It goes off the site at once{% if ids %}, and with it what people have marked about {% if ids|length == 1 %}it{% else %}its {{ ids|length }} items{% endif %}: their grades are stored under the id{{ ids|pluralize }} {% for id in ids|slice:":12" %}<code>{{ id }}</code>{% if not forloop.last %}, {% endif %}{% endfor %}{% if ids|length > 12 %} and {{ ids|length|add:"-12" }} more{% endif %}{% endif %}.</p>
+  </div>
+</header>
+
+<div class="desk">
+  {% if refused %}
+  <div class="refused" role="alert">
+    <p class="refused__head">{% icon "warning" %}{{ refused.head }}</p>
+    {% if refused.kind == "invalid" %}
+    <p>Something else in the course still depends on it, most likely a link to it. Change that first.</p>
+    <pre class="refused__report">{% for line in refused.lines %}{{ line }}
+{% endfor %}</pre>
+    {% else %}
+    {% for line in refused.lines %}<p>{{ line }}</p>{% endfor %}
+    {% endif %}
+  </div>
+  {% endif %}
+
+  {% if only %}
+  <p class="notice" role="status">{% icon "info" %}It is the only {{ what }} here, and a {{ container_noun }} cannot be empty. Remove the {{ container_noun }} instead, or add another {{ what }} first.</p>
+  <p><a class="btn" href="{{ cancel }}">Back</a></p>
+  {% else %}
+  <form class="form plate" method="post">
+    {% csrf_token %}
+    <input type="hidden" name="seen" value="{{ seen }}">
+    <p>Nothing is lost for good: the course as it is now stays in its history, and the step that removes this can be taken back.</p>
+    <div class="form__foot">
+      <a class="btn" href="{{ cancel }}">Keep it</a>
+      <button class="btn btn--danger" type="submit">Remove the {{ what }}</button>
+    </div>
+  </form>
+  {% endif %}
+</div>
+{% endblock %}

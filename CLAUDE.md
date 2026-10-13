@@ -152,7 +152,10 @@ To sign in locally press "Development sign-in" on the landing page.
   wrote on the site until the owner takes it into the course files.
 - The editor writes YAML with `ingest/yamledit.py` only (LaTeX goes in literal blocks,
   where a backslash is safe), and what a form may contain is decided by
-  `ingest/schemas.py`, the same models the importer uses, not by the form.
+  `ingest/schemas.py`, the same models the importer uses, not by the form. The forms
+  for YAML content are made from those models (`editor/schema.py`): a field added to a
+  schema appears in its form by itself, so a new content field needs no editor change,
+  and a new kind of file is an entry in `editor/items.py` or `editor/whole.py`.
 - When something happens that a person should hear of, leave them a notification
   (`desk.notices.tell`): what happened and where to look, never who sent it or what it
   says.

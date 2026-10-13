@@ -11,6 +11,7 @@ worked answers with a redirect, so the page that follows is a plain GET. Reloadi
 going back to it, never sends the form a second time.
 """
 
+import json
 from datetime import datetime
 
 from django.db import transaction
@@ -105,8 +106,34 @@ def overview(request, course):
         steps=HandIn.objects.filter(slug=course.slug).light().select_related("user")[:5],
         session_minutes=int(handins.SESSION.total_seconds() // 60),
         deleted=request.GET.get("deleted"),
+        saved=request.GET.get("saved"),
+        shelves=_shelves(course, context["counts"]),
     )
     return render(request, "editor/overview.html", context)
+
+
+def _shelves(course, counts):
+    """The kinds of content that have forms of their own beyond pages of text, for the
+    editor's front page: where each is edited, and how much of it there is."""
+    rows = [
+        ("cards", "cards", "Flashcards", "Decks and their cards", "decks"),
+        ("problems", "problems", "Problems", "Practice sets and their questions", "problem_sets"),
+        ("exams", "exam", "Exams", "Each exam's page and its papers", "exams"),
+        ("formulas", "formulas", "Formulas", "The formula sheet, section by section", "formulas"),
+        ("glossary", "glossary", "Glossary", "Terms and their definitions", "terms"),
+        ("hooks", "hook", "Hooks", "Mnemonics that are not tied to one card", "hooks"),
+        ("palaces", "palace", "Memory palaces", "Ordered lists along a route", "palaces"),
+    ]
+    return [
+        {
+            "url": reverse(f"editor:{name}", args=[course.slug]),
+            "icon": icon,
+            "title": title,
+            "what": what,
+            "count": counts.get(count),
+        }
+        for name, icon, title, what, count in rows
+    ]
 
 
 @require_POST
@@ -332,6 +359,32 @@ def preview(request, course):
         return JsonResponse({"error": "too long to preview"}, status=413)
     shown = source.preview(course, name, body, request.POST.getlist("takeaways")[:30])
     return JsonResponse(shown)
+
+
+@require_POST
+def preview_fields(request, course):
+    """The texts of a form about a YAML file, each as the site would show it. The form
+    sends them as JSON: {"file": …, "fields": [{"name", "label", "text", "cloze"}]}."""
+    course, _context = _open(request, course)
+    try:
+        sent = json.loads(request.body)
+        name, fields = str(sent["file"]), list(sent["fields"])[:80]
+        parts = [
+            {
+                "name": str(part["name"]),
+                "label": str(part.get("label", "")),
+                "text": str(part.get("text", "")),
+                "cloze": bool(part.get("cloze")),
+            }
+            for part in fields
+        ]
+    except (ValueError, KeyError, TypeError):
+        raise Http404 from None
+    if not source.plain(name) or not name.lower().endswith((".yaml", ".yml")):
+        raise Http404
+    if sum(len(part["text"]) for part in parts) > MAX_PREVIEW:
+        return JsonResponse({"error": "too long to preview"}, status=413)
+    return JsonResponse({"fields": source.preview_fields(course, name, parts)})
 
 
 # ---- the history ---------------------------------------------------------------------------

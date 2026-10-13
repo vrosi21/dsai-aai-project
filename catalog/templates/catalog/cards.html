@@ -4,6 +4,8 @@
 {% block title %}Flashcards · {{ course.title }}{% endblock %}
 {% block crumbs %}<a href="{% url 'catalog:home' %}">Courses</a>{% icon "next" %}<a href="{{ course.get_absolute_url }}">{{ course.title }}</a>{% icon "next" %}<span>Flashcards</span>{% endblock %}
 
+{% block editing %}<a class="btn btn--small btn--tonal" href="{% url 'editor:cards' course.slug %}">Edit the decks</a>{% endblock %}
+
 {% block content %}
 <header class="page-head">
   <p class="overline">Retrieve first</p>

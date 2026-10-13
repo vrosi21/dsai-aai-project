@@ -1,0 +1,12 @@
+{% load ui fields %}{% comment %} One entry of a list in a form (`fields`: its fields; `entry`: what it is called). The
+   buttons move it among its neighbours or take it out; the server reads the entries in
+   the order they stand on the page (editor.schema.parse). {% endcomment %}
+<div class="repeat__row" x-data="{{ fields|steer }}">
+  <div class="repeat__bar">
+    <span class="repeat__name">{{ entry|capfirst }}</span>
+    <button class="btn btn--small" type="button" @click="move($event, -1)" aria-label="Move this {{ entry }} up">Up</button>
+    <button class="btn btn--small" type="button" @click="move($event, 1)" aria-label="Move this {{ entry }} down">Down</button>
+    <button class="btn btn--small repeat__remove" type="button" @click="remove($event)">Remove</button>
+  </div>
+  {% include "editor/nodes.html" %}
+</div>

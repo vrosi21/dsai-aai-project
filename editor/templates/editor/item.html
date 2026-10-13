@@ -1,0 +1,106 @@
+{% extends "editor/base.html" %}
+{% load ui fields %}
+{% comment %} The form for anything kept in a YAML file (editor/shelves.py, editor/whole.py): a card,
+   a question, a deck's settings, a new deck with its first card, an exam's page. The
+   fields come from the content's schema (editor/nodes.html draws them); the column
+   beside them shows every text of the form as the site will render it. {% endcomment %}
+
+{% block title %}{{ heading }} · {{ course.title }}{% endblock %}
+{% block crumbs %}<a href="{{ course.get_absolute_url }}">{{ course.title }}</a>{% icon "next" %}<a href="{% url 'editor:overview' course.slug %}">Edit</a>{% for label, url in crumbs %}{% icon "next" %}<a href="{{ url }}">{{ label }}</a>{% endfor %}{% icon "next" %}<span>{{ heading }}</span>{% endblock %}
+{% block inner_class %}page__inner--wide{% endblock %}
+
+{% block content %}
+<div class="editor editor--item" x-data="editor" data-fields="{% url 'editor:preview_fields' course.slug %}" data-file="{{ file }}" :data-pane="pane" @keydown="keys($event)">
+  <header class="editor__head">
+    <div>
+      <p class="overline">{{ overline }}</p>
+      <h1>{{ heading }}</h1>
+    </div>
+    <div class="editor__panes no-print" role="group" aria-label="What to show">
+      <button class="btn btn--small" type="button" :aria-pressed="pane === 'write'" @click="pane = 'write'">Write</button>
+      <button class="btn btn--small" type="button" :aria-pressed="pane === 'preview'" @click="pane = 'preview'">Preview</button>
+    </div>
+  </header>
+
+  {% if saved %}<p class="notice notice--top" role="status">{% icon "check" %}Saved <code>{{ saved }}</code>. It is on the site now. Here is the form for the next one.</p>{% endif %}
+  {% if note == "same" %}<p class="notice notice--top" role="status">{% icon "info" %}Nothing was changed, so there was nothing to save.</p>
+  {% elif note %}<p class="notice notice--top" role="status">{% icon "check" %}Saved. It is on the site now.{% if public %} <a class="link" href="{{ public }}">View it</a>{% endif %}</p>{% endif %}
+  {% if refused %}{% include "editor/refused.html" with form_id="editor-form" current_url="" %}{% endif %}
+
+  <div class="editor__cols">
+    <form class="editor__write form" id="editor-form" method="post" action="{{ here }}" @input="changed($event)" @focusin="focused($event)" @submit="leaving = true" novalidate>
+      {% csrf_token %}
+      <input type="hidden" name="seen" value="{{ seen }}">
+      {% for problem in problems %}<p class="form__error" role="alert">{{ problem }}</p>{% endfor %}
+
+      {% if address %}
+      <div class="form__field">
+        <label for="f-address">Address</label>
+        <input type="text" name="address" id="f-address" value="{{ address.value }}" maxlength="64" spellcheck="false" autocapitalize="off" required>
+        <p class="form__hint">The file's name, and the end of its address on the site: lowercase letters, digits and hyphens. It cannot be changed afterwards.</p>
+        {% for error in address.errors %}<p class="form__error" role="alert">{{ error }}</p>{% endfor %}
+      </div>
+      {% endif %}
+
+      {# Writes Markdown or LaTeX into whichever text box the cursor is in. #}
+      <div class="toolbar toolbar--float" role="toolbar" aria-label="Formatting, for the text box you are in">
+        <button type="button" @click="tool('bold')" title="Bold (Ctrl+B)"><strong>B</strong></button>
+        <button type="button" @click="tool('italic')" title="Italic (Ctrl+I)"><em>I</em></button>
+        <button type="button" @click="tool('code')" title="Inline code"><code>code</code></button>
+        <button type="button" @click="tool('list')" title="Bulleted list">List</button>
+        <button type="button" @click="tool('link')" title="Link: to a web address, or to something in the course, e.g. card:lsq-01">Link</button>
+        <span class="toolbar__gap" aria-hidden="true"></span>
+        <button type="button" @click="tool('math')" title="Maths in the line: $x^2$">$x$</button>
+        <button type="button" @click="tool('display')" title="Maths on a line of its own">$$</button>
+        <button type="button" @click="tool('aligned')" title="Several lines of maths, aligned at &amp;">aligned</button>
+        <button type="button" @click="tool('frac')" title="A fraction">a/b</button>
+        <span class="toolbar__gap" aria-hidden="true"></span>
+        <button type="button" @click="tool('blank')" title="A blank to recall, in a fill-in-the-blanks card">{% templatetag openvariable %}blank{% templatetag closevariable %}</button>
+      </div>
+
+      {% for section in sections %}
+      {% if section.legend %}<h2 class="editor__legend">{{ section.legend }}</h2>{% endif %}
+      <div class="editor__fields" x-data="{{ section.fields|steer }}">{% include "editor/nodes.html" with fields=section.fields %}</div>
+      {% endfor %}
+
+      <div class="editor__foot">
+        <button class="btn btn--filled" type="submit">Save</button>
+        {% if again %}<button class="btn btn--tonal" type="submit" name="again" value="1">Save and add another</button>{% endif %}
+        {% if public and not new %}<button class="btn btn--tonal" type="submit" name="view" value="1">Save and view</button>{% endif %}
+        <a class="btn" href="{{ cancel }}" @click="leaving = true">Cancel</a>
+        <span class="editor__unsaved" x-show="dirty" x-cloak>Not saved yet</span>
+      </div>
+      <p class="form__hint">A save is on the site at once, after the same check every course file passes. An id cannot be changed once it is saved: what people have marked is stored under it.</p>
+      {% if raw or remove %}
+      <p class="editor__more">
+        {% if raw and not new %}<a class="link" href="{{ raw }}" @click="leaving = true">The file as text</a>{% endif %}
+        {% if remove %}<a class="link editor__remove" href="{{ remove }}" @click="leaving = true">Remove this {{ noun }}</a>{% endif %}
+      </p>
+      {% endif %}
+    </form>
+
+    <section class="editor__preview" aria-label="Preview">
+      <p class="editor__preview-head"><span class="overline">Preview</span><span class="faint" x-show="pending" x-cloak>updating</span><span class="form__error" x-show="failed" x-cloak>The preview could not be fetched.</span></p>
+      <ul class="editor__problems" x-show="problems.length" x-cloak>
+        <template x-for="(problem, index) in problems" :key="index">
+          <li :data-level="problem.level">
+            <button class="link" type="button" x-show="problem.where" @click="show(problem.name)" x-text="problem.where"></button>
+            <span x-text="problem.message"></span>
+            <span class="faint" x-show="problem.hint" x-text="problem.hint"></span>
+          </li>
+        </template>
+      </ul>
+      <article class="editor__paper">
+        <template x-for="part in shown" :key="part.name">
+          <div class="shown">
+            <p class="overline" x-text="part.label"></p>
+            {# The renderer's own HTML, made with raw HTML switched off; x-math typesets its maths. #}
+            <div class="md" x-math="part.html"></div>
+          </div>
+        </template>
+        <p class="faint" x-show="!shown.length && !pending" x-cloak>The texts of the form appear here as the site will show them.</p>
+      </article>
+    </section>
+  </div>
+</div>
+{% endblock %}

@@ -26,6 +26,7 @@ const TOOLS = {
     block: ["", ""],
     sample: "| Column | Column |\n|---|---|\n| cell | cell |\n| cell | cell |",
   },
+  blank: { wrap: ["{{", "}}"], sample: "word" },
 };
 
 const PAUSE = 450; // ms without typing before the preview is asked for
@@ -49,6 +50,8 @@ export default function editor() {
     summary: "",
     html: "",
     points: [],
+    shown: [], // a form about a YAML file: each of its texts, rendered
+    last: null, // there, the text box the cursor was in last
     issues: [], // what the server's renderer objected to
     broken: [], // formulas the browser's KaTeX could not typeset
     pending: false,
@@ -75,12 +78,14 @@ export default function editor() {
     get form() {
       return this.$root.querySelector("form");
     },
-    /** The box the text is typed into. */
+    /** The box the text is typed into: the one there is, or, in a form with several,
+        the one the cursor was in last. */
     get box() {
-      return this.form.querySelector("textarea[name=body], textarea[name=text]");
+      if (this.last?.isConnected) return this.last;
+      return this.form.querySelector("textarea[name=body], textarea[name=text], textarea[data-md]");
     },
     get previews() {
-      return Boolean(this.$root.dataset.preview);
+      return Boolean(this.$root.dataset.preview || this.$root.dataset.fields);
     },
     get problems() {
       return [...this.issues, ...this.broken];
@@ -119,7 +124,58 @@ export default function editor() {
       name.value = stem && number ? `${String(number).padStart(2, "0")}-${stem}` : stem;
     },
 
+    focused(event) {
+      if (event.target.matches?.("textarea[data-md]")) this.last = event.target;
+    },
+
+    /** Go to a field of the form by its name, and show it. */
+    show(name) {
+      const field = this.form.elements[name];
+      this.pane = "write";
+      this.$nextTick(() => {
+        field?.scrollIntoView({ block: "center" });
+        field?.focus();
+      });
+    },
+
+    /** A form about a YAML file: every text of it that is on show, to be rendered. */
+    async refreshFields() {
+      const fields = [...this.form.querySelectorAll("textarea[data-md]")]
+        // A field the form is hiding (the choices of a question that has none) is not sent.
+        .filter((box) => box.offsetParent !== null && box.value.trim() !== "")
+        .map((box) => ({
+          name: box.name,
+          label: box.dataset.label,
+          text: box.value,
+          cloze: box.dataset.md === "cloze",
+        }));
+      const mine = ++this.asked;
+      this.pending = true;
+      try {
+        const response = await fetch(this.$root.dataset.fields, {
+          method: "POST",
+          body: JSON.stringify({ file: this.$root.dataset.file, fields }),
+          headers: {
+            "Content-Type": "application/json",
+            "X-CSRFToken": document.documentElement.dataset.csrf,
+          },
+        });
+        if (!response.ok) throw new Error(response.status);
+        const answer = await response.json();
+        if (mine !== this.asked) return;
+        this.shown = answer.fields;
+        this.issues = answer.fields.flatMap((part) => part.problems);
+        this.failed = false;
+        this.$nextTick(() => this.maths());
+      } catch {
+        if (mine === this.asked) this.failed = true;
+      } finally {
+        if (mine === this.asked) this.pending = false;
+      }
+    },
+
     async refresh() {
+      if (this.$root.dataset.fields) return this.refreshFields();
       const data = new FormData();
       data.set("file", this.$root.dataset.file);
       data.set("body", this.box.value);
@@ -175,7 +231,7 @@ export default function editor() {
       if (key === "s") {
         event.preventDefault();
         this.save();
-      } else if (this.previews && event.target === this.box && (key === "b" || key === "i")) {
+      } else if (this.previews && event.target.matches?.("textarea") && (key === "b" || key === "i")) {
         event.preventDefault();
         this.tool(key === "b" ? "bold" : "italic");
       }
@@ -264,6 +320,41 @@ export function rows() {
       const form = row.closest("form");
       row.remove();
       form?.dispatchEvent(new Event("input", { bubbles: true }));
+    },
+  };
+}
+
+/** The entries of a list in a form made from a schema (editor/templates/editor/nodes.html).
+    `next` is the number the next new entry gets, `mark` what stands for that number in
+    the names of the blank entry. Entries are read by the server in the order they stand
+    on the page, so moving one is moving its element. */
+export function repeat(next, mark) {
+  return {
+    next,
+    add() {
+      const html = this.$refs.blank.innerHTML.replaceAll(mark, String(this.next++));
+      this.$refs.rows.insertAdjacentHTML("beforeend", html);
+      const row = this.$refs.rows.lastElementChild;
+      row.querySelector("input:not([type=checkbox]), textarea, select")?.focus();
+      this.told(row);
+    },
+    remove(event) {
+      const row = event.target.closest(".repeat__row");
+      const form = row.closest("form");
+      row.remove();
+      this.told(form);
+    },
+    move(event, by) {
+      const row = event.target.closest(".repeat__row");
+      const other = by < 0 ? row.previousElementSibling : row.nextElementSibling;
+      if (!other) return;
+      if (by < 0) other.before(row);
+      else other.after(row);
+      this.told(row);
+    },
+    /** Tell the form that it changed, as typing would. */
+    told(from) {
+      from?.dispatchEvent(new Event("input", { bubbles: true }));
     },
   };
 }

@@ -1,0 +1,36 @@
+{% extends "editor/base.html" %}
+{% load ui %}
+{% comment %} The containers of one kind of content (editor.shelves.index): the decks, the problem
+   sets, the sections of the formula sheet. {% endcomment %}
+
+{% block title %}{{ shelf.title }} · Edit · {{ course.title }}{% endblock %}
+{% block crumbs %}<a href="{{ course.get_absolute_url }}">{{ course.title }}</a>{% icon "next" %}<a href="{% url 'editor:overview' course.slug %}">Edit</a>{% icon "next" %}<span>{{ shelf.title }}</span>{% endblock %}
+{% block inner_class %}page__inner--narrow{% endblock %}
+
+{% block content %}
+<header class="dash-head">
+  <div>
+    <p class="overline">{{ course.code }} · Edit</p>
+    <h1>{{ shelf.title }}</h1>
+    <p class="dash-head__lead">{% if rows %}Open a {{ shelf.noun }} to change its {{ shelf.one }}s, or start a new one.{% else %}This course has no {{ shelf.noun }} yet.{% endif %}</p>
+  </div>
+  <div class="dash-head__tools no-print">
+    <a class="btn btn--outlined btn--small" href="{% url 'editor:overview' course.slug %}">{% icon "back" %}Edit</a>
+    <a class="btn btn--tonal btn--small" href="{{ new }}">New {{ shelf.noun }}</a>
+  </div>
+</header>
+
+<div class="desk">
+  {% if removed %}<p class="notice" role="status">{% icon "check" %}Removed. It is in the course's <a class="link" href="{% url 'editor:history' course.slug %}">history</a>, should it be wanted back.</p>{% endif %}
+  {% if rows %}
+  <div class="list">
+    {% for row in rows %}
+    <a class="list-item" href="{{ row.url }}">
+      <span class="list-item__body"><strong>{{ row.title }}</strong>{% if shelf.folder %}<span class="faint">{{ row.name }}</span>{% endif %}</span>
+      <span class="list-item__meta">{{ row.count }} {{ shelf.one }}{{ row.count|pluralize }}{% icon "next" %}</span>
+    </a>
+    {% endfor %}
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

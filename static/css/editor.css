@@ -317,6 +317,122 @@
     }
   }
 
+  /* ---- a form made from a schema (editor/nodes.html, editor/item.html) ------------------ */
+  .editor__fields,
+  .group__body {
+    display: grid;
+    gap: var(--s5);
+    min-width: 0;
+  }
+  .editor__legend {
+    margin-top: var(--s3);
+    padding-top: var(--s4);
+    border-top: 1px solid var(--outline-variant);
+    font-size: var(--text-l);
+    font-weight: 650;
+  }
+  .editor--item .form__field textarea[data-md] {
+    font-family: var(--font-mono);
+    font-size: var(--text-s);
+    line-height: 1.65;
+  }
+  .form__field--flag .form__hint {
+    margin-top: calc(var(--s1) * -1);
+  }
+  /* The buttons that write Markdown, for whichever box the cursor is in. They stay in
+     sight while the form scrolls. */
+  .toolbar--float {
+    position: sticky;
+    top: calc(var(--topbar) + var(--s2));
+    z-index: 3;
+    border-radius: var(--r-control);
+    box-shadow: var(--shadow-1);
+  }
+  /* Fields that belong together, and the entries of a list: a frame of their own, so
+     that it shows where one ends. */
+  .group,
+  .repeat {
+    display: grid;
+    gap: var(--s4);
+    min-width: 0;
+    margin: 0;
+    padding: var(--s4);
+    border: 0;
+    border-radius: var(--r-m);
+    background: var(--surface-low);
+    & > legend {
+      float: left;
+      width: 100%;
+      padding: 0;
+      font-weight: 600;
+    }
+    /* A legend floated out of the border needs what follows to start below it. */
+    & > legend + * {
+      clear: both;
+    }
+  }
+  .repeat > .btn {
+    justify-self: start;
+  }
+  .repeat__rows {
+    display: grid;
+    gap: var(--s3);
+    &:empty {
+      display: none;
+    }
+  }
+  .repeat__row {
+    display: grid;
+    gap: var(--s4);
+    min-width: 0;
+    padding: var(--s3) var(--s4) var(--s4);
+    border-radius: var(--r-m);
+    background: var(--surface-raised);
+    box-shadow: inset 0 0 0 1px var(--outline-variant);
+  }
+  .repeat__bar {
+    display: flex;
+    align-items: center;
+    gap: var(--s1);
+    & .btn {
+      min-height: 1.75rem;
+      padding: 0 var(--s2);
+      color: var(--on-surface-variant);
+    }
+  }
+  .repeat__name {
+    margin-right: auto;
+    font-size: var(--text-s);
+    font-weight: 600;
+    color: var(--on-surface-variant);
+  }
+  .repeat__bar .repeat__remove {
+    color: var(--missed);
+  }
+  /* The texts of the form, rendered one under the other. */
+  .shown {
+    display: grid;
+    gap: var(--s2);
+    min-width: 0;
+    & + & {
+      padding-top: var(--s4);
+      border-top: 1px solid var(--outline-variant);
+    }
+    & .md {
+      min-width: 0;
+      overflow-wrap: anywhere;
+    }
+  }
+  /* An item in a list, with its own links at the end of the row. */
+  .item-row {
+    & a.list-item__body:hover strong {
+      text-decoration: underline;
+    }
+    & .list-item__meta {
+      gap: var(--s4);
+    }
+  }
+
   /* ---- the history: what a step changed, line by line (editor/diff.html) --------------- */
   .diff {
     border-radius: var(--r-m);

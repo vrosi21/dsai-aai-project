@@ -1,0 +1,83 @@
+{% load ui fields %}{% comment %} The fields of a form made from a schema (`fields`, a list of editor.schema.Bound). It
+   includes itself for the fields inside a group, and editor/row.html for the entries of
+   a list, which includes this again: as deep as the content is nested. A field that
+   applies only to some kinds of item (the choices of a multiple-choice question) is
+   shown with x-show against the choice that decides it; the element around this
+   include holds that choice as Alpine state (the `steer` filter). {% endcomment %}
+{% for f in fields %}{% with node=f.node %}
+{% if node.kind == "group" %}
+<fieldset class="group"{% if node.when %} x-show="{{ node.when.1|among }}.includes({{ node.when.0 }})"{% endif %}>
+  <legend>{{ node.label }}</legend>
+  {% if node.help %}<p class="form__hint">{{ node.help }}</p>{% endif %}
+  {% for error in f.errors %}<p class="form__error" role="alert">{{ error }}</p>{% endfor %}
+  <div class="group__body" x-data="{{ f.children|steer }}">{% include "editor/nodes.html" with fields=f.children %}</div>
+</fieldset>
+{% elif node.kind == "list" %}
+<fieldset class="repeat" x-data="repeat({{ f.count }}, '{{ f.mark }}')"{% if node.when %} x-show="{{ node.when.1|among }}.includes({{ node.when.0 }})"{% endif %}>
+  <legend>{{ node.label }}{% if not node.required %} <span class="form__optional">optional</span>{% endif %}</legend>
+  {% if node.help %}<p class="form__hint">{{ node.help }}</p>{% endif %}
+  {% for error in f.errors %}<p class="form__error" role="alert">{{ error }}</p>{% endfor %}
+  <div class="repeat__rows" x-ref="rows">
+    {% for row in f.rows %}{% include "editor/row.html" with fields=row entry=node.entry %}{% endfor %}
+  </div>
+  {# Copied by the Add button, with the mark in the names replaced by the next number. #}
+  <template x-ref="blank">{% include "editor/row.html" with fields=f.blank entry=node.entry %}</template>
+  <button class="btn btn--small btn--outlined" type="button" @click="add()">Add a {{ node.entry }}</button>
+</fieldset>
+{% elif node.kind == "flag" %}
+<div class="form__field form__field--flag"{% if node.when %} x-show="{{ node.when.1|among }}.includes({{ node.when.0 }})"{% endif %}>
+  <label class="handin__tick"><input type="checkbox" name="{{ f.name }}" id="{{ f.id }}" value="yes"{% if f.value %} checked{% endif %}><span>{{ node.label }}</span></label>
+  {% if node.help %}<p class="form__hint">{{ node.help }}</p>{% endif %}
+  {% for error in f.errors %}<p class="form__error" role="alert">{{ error }}</p>{% endfor %}
+</div>
+{% else %}
+<div class="form__field"{% if node.when %} x-show="{{ node.when.1|among }}.includes({{ node.when.0 }})"{% endif %}>
+  <label for="{{ f.id }}">{{ node.label }}{% if not node.required and not node.pretend and not node.fixed %} <span class="form__optional">optional</span>{% endif %}</label>
+  {% if node.fixed %}
+  <input type="text" id="{{ f.id }}" value="{{ f.shown }}" readonly>
+  {% elif node.kind == "markdown" or node.kind == "cloze" %}
+  <textarea name="{{ f.name }}" id="{{ f.id }}" rows="{{ f.shown|height }}" data-md="{{ node.kind }}" data-label="{{ node.label }}">{{ f.shown }}</textarea>
+  {% elif node.kind == "text" %}
+  <textarea name="{{ f.name }}" id="{{ f.id }}" rows="{{ f.shown|height }}">{{ f.shown }}</textarea>
+  {% elif node.kind == "choice" or node.kind == "topic" or node.kind == "lecture" %}
+  <select name="{{ f.name }}" id="{{ f.id }}"{% if f.steers %} x-model="{{ node.key }}"{% endif %}>
+    {% if not node.required and not node.pretend and not node.default %}<option value="">{% if node.kind == "choice" %}Not said{% else %}None{% endif %}</option>{% endif %}
+    {% if node.required and not f.shown %}<option value="">Choose…</option>{% endif %}
+    {% for value, label in node.choices %}<option value="{{ value }}"{% if value|stringformat:"s" == f.shown|stringformat:"s" %} selected{% endif %}>{{ label }}</option>{% endfor %}
+    {# A value the course no longer has (a topic that was removed) is kept until it is changed. #}
+    {% if f.shown and node.kind != "choice" and not f.shown|among_choices:node.choices %}<option value="{{ f.shown }}" selected>{{ f.shown }} (not in this course)</option>{% endif %}
+  </select>
+  {% elif node.kind == "truth" %}
+  <select name="{{ f.name }}" id="{{ f.id }}">
+    <option value="">Not said</option>
+    <option value="true"{% if f.value is True %} selected{% endif %}>True</option>
+    <option value="false"{% if f.value is False %} selected{% endif %}>False</option>
+  </select>
+  {% elif node.kind == "number" or node.kind == "decimal" %}
+  <input type="number" name="{{ f.name }}" id="{{ f.id }}" value="{{ f.shown }}" step="{% if node.kind == 'number' %}1{% else %}any{% endif %}"{% if node.low is not None %} min="{{ node.low|stringformat:'g' }}"{% endif %}{% if node.high is not None %} max="{{ node.high|stringformat:'g' }}"{% endif %}>
+  {% elif node.kind == "date" %}
+  <input type="date" name="{{ f.name }}" id="{{ f.id }}" value="{{ f.value|date:'Y-m-d'|default:f.shown }}">
+  {% elif node.kind == "refs" or node.kind == "ids" %}
+  <div class="rows" x-data="rows">
+    <div class="rows__list" x-ref="list">
+      {% for line in f.value %}
+      <div class="rows__row"><input type="text" name="{{ f.name }}" value="{{ line }}" aria-label="{{ node.label }}, line {{ forloop.counter }}"><button class="icon-btn" type="button" @click="remove($event)" aria-label="Remove this line">{% icon "close" %}</button></div>
+      {% endfor %}
+    </div>
+    <template x-ref="blank"><div class="rows__row"><input type="text" name="{{ f.name }}" value="" aria-label="{{ node.label }}, new line"><button class="icon-btn" type="button" @click="remove($event)" aria-label="Remove this line">{% icon "close" %}</button></div></template>
+    <button class="btn btn--small btn--outlined" type="button" @click="add()" id="{{ f.id }}">Add a line</button>
+  </div>
+  {% elif node.kind == "topics" or node.kind == "exams" or node.kind == "numbers" %}
+  {% if node.choices %}
+  <div class="ticks" id="{{ f.id }}">
+    {% for value, label in node.choices %}<label class="ticks__item"><input type="checkbox" name="{{ f.name }}" value="{{ value }}"{% if f.value|has:value %} checked{% endif %}><span>{{ label }}</span></label>{% endfor %}
+  </div>
+  {% else %}<p class="form__hint" id="{{ f.id }}">The course has none yet.</p>{% endif %}
+  {% else %}
+  <input type="text" name="{{ f.name }}" id="{{ f.id }}" value="{{ f.shown }}"{% if node.kind == "id" %} spellcheck="false" autocapitalize="off"{% endif %}>
+  {% endif %}
+  {% if node.help %}<p class="form__hint">{{ node.help }}</p>{% endif %}
+  {% for error in f.errors %}<p class="form__error" role="alert">{{ error }}</p>{% endfor %}
+</div>
+{% endif %}
+{% endwith %}{% endfor %}

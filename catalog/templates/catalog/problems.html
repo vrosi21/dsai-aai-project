@@ -5,6 +5,8 @@
 {% block crumbs %}<a href="{% url 'catalog:home' %}">Courses</a>{% icon "next" %}<a href="{{ course.get_absolute_url }}">{{ course.title }}</a>{% icon "next" %}<span>Problems</span>{% endblock %}
 {% block inner_class %}page__inner--narrow{% endblock %}
 
+{% block editing %}<a class="btn btn--small btn--tonal" href="{% url 'editor:problems' course.slug %}">Edit the problem sets</a>{% endblock %}
+
 {% block content %}
 <header class="page-head">
   <p class="overline">Write it before you read it</p>

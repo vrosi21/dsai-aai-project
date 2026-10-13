@@ -665,6 +665,67 @@ line in the step's `trail`: when, and which files it changed, by hash. The bytes
 the blob store either way; the trail is what makes a text that a later save of the same
 sitting replaced findable again.
 
+### Everything in YAML: forms made from the schemas
+
+Cards, questions, formulas, terms, hooks, palaces, an exam's page and the course's own
+file are YAML, and what each may contain is written down once, as the Pydantic models of
+[ingest/schemas.py](../ingest/schemas.py). Their forms are made from those models, so
+there is no form class per content type and no second set of rules.
+
+**A schema as a form** ([editor/schema.py](../editor/schema.py)).
+
+- `describe(model, course)` walks a model's fields and gives each a kind: one line,
+  Markdown, an id, a number, a choice (a `Literal`), a topic or lecture of the course to
+  pick, lines of links, a group (a nested model), a list (a list of nested models, as
+  deep as the content goes: a plan has phases that have tasks). Labels and the help
+  under a field are the schema's own descriptions.
+- These are not Django `Form`s: Django's forms are flat, content is nested. The nesting
+  is in the names of the inputs (`steps-0-do`, `plan-phases-1-tasks-0-text`), and
+  `parse(nodes, request.POST)` reads them back into the dicts and lists that would stand
+  in the file. Entries of a list are taken in the order they stand on the page, so
+  moving one in the browser is moving its element; what is empty or the schema's default
+  is left out, and a number or a date becomes one.
+- `validate(model, data)` is the model itself, and its errors come back keyed by place
+  (`("steps", 1, "do")`), in the importer's words (`schemas.explain`). `bind` lays values
+  and errors over the fields for [nodes.html](../editor/templates/editor/nodes.html),
+  which includes itself for a group and `row.html` for each entry of a list.
+- Some fields apply to some items only: the choices of a multiple-choice question, the
+  steps of a derivation. `SWITCHES` names the choice that decides (`type` for a
+  question; for a card a choice that is not written anywhere, since a card's kind
+  follows from the fields it has). The page shows and hides with `x-show`; `parse` does
+  not read what is hidden, so turning a card into another kind takes the old fields out.
+
+**One piece of a file** ([ingest/yamledit.py](../ingest/yamledit.py), second half). A
+deck of forty cards is one file, and changing one card must change that card's lines and
+nothing else. `yaml.compose` says where every part of a file sits, so `replace_item`,
+`add_item`, `remove_item` and `set_keys` work on lines of text: the rest of the file
+keeps its comments and layout byte for byte, and the history shows what really changed.
+None of them is trusted: `changed()` reads the result back and compares it with the data
+that was meant, and writes the file whole (correct, without its comments) if they
+differ.
+
+**Kinds of content** ([editor/items.py](../editor/items.py)). Most YAML files are a few
+settings and a list. A `Shelf` describes one such kind (decks, problem sets, papers, the
+sections of the formula sheet, the glossary, the hooks): the file or folder, the key of
+the list, the schema of an item. `save_item`, `remove_item`, `save_keys` and `create`
+are functions from the file's text to its new text, run through `handins.change` under
+the course's lock on the file as it is at that moment. An item's form carries the
+fingerprint of that item's data, not of the file: two people on two cards of one deck do
+not collide, two on the same card do. Whether anything changed at all is asked of the
+schema (`same`, `_meaning`): `kind: phrase` written out and left to its default are the
+same item, so saving a form untouched writes nothing.
+
+**The pages.** [editor/shelves.py](../editor/shelves.py) is one set of views for every
+shelf (the list of decks, one deck with its cards, a card, a deck's settings, a new deck
+with its first card, removing either); the URL says which shelf, as an extra argument
+from [editor/urls.py](../editor/urls.py) (`shelf_urls`).
+[editor/whole.py](../editor/whole.py) has the files that are one form each: an exam's
+page (with its papers, which are a shelf inside the exam's folder), a palace, and
+`course.yaml` in two halves, the description and topics for the people who write the
+course and the rest for staff. All of them draw
+[item.html](../editor/templates/editor/item.html); its preview column shows every
+Markdown field of the form as the site would render it (`POST …/preview/fields/`).
+
 ### The history: versions of a course
 
 `/edit/<course>/history/` and the pages under it, for the same people as the editor
@@ -746,7 +807,13 @@ a page fills the `editing` block with what it offers (`Edit this page`, `New lec
   [ingest/tests/test_yamledit.py](../ingest/tests/test_yamledit.py).
   [test_history.py](../editor/tests/test_history.py): the comparison itself; a version
   brought back as a new step; a removed page and a text replaced within one sitting
-  found and put back; that a hash alone opens nothing. How versions are kept
+  found and put back; that a hash alone opens nothing.
+  [test_items.py](../editor/tests/test_items.py) and
+  [test_whole.py](../editor/tests/test_whole.py): a schema read as a form and a form
+  read back as data; every item and every file of the example course sent back
+  untouched changes nothing; one card changed leaves the rest of its file byte for
+  byte; a new deck, exam, paper, palace; what the schema and the course refuse.
+  How versions are kept
   (`KeptTests`) and that converted steps are the same course to the byte
   (`ConvertedTests`, which runs the migration's function) are with the hand-ins.
 - [catalog/tests/test_welcome.py](../catalog/tests/test_welcome.py): who is offered the

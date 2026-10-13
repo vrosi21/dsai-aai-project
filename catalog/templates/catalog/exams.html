@@ -4,6 +4,8 @@
 {% block title %}Exam prep · {{ course.title }}{% endblock %}
 {% block crumbs %}<a href="{% url 'catalog:home' %}">Courses</a>{% icon "next" %}<a href="{{ course.get_absolute_url }}">{{ course.title }}</a>{% icon "next" %}<span>Exam prep</span>{% endblock %}
 
+{% block editing %}<a class="btn btn--small btn--tonal" href="{% url 'editor:exams' course.slug %}">Edit the exams</a>{% endblock %}
+
 {% block content %}
 <header class="page-head">
   <p class="overline">{{ course.code }}</p>

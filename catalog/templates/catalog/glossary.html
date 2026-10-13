@@ -5,6 +5,8 @@
 {% block crumbs %}<a href="{% url 'catalog:home' %}">Courses</a>{% icon "next" %}<a href="{{ course.get_absolute_url }}">{{ course.title }}</a>{% icon "next" %}<span>Glossary</span>{% endblock %}
 {% block inner_class %}page__inner--narrow{% endblock %}
 
+{% block editing %}<a class="btn btn--small btn--tonal" href="{% url 'editor:glossary' course.slug %}">Edit the glossary</a>{% endblock %}
+
 {% block content %}
 <div x-data="cover">
   <header class="page-head">

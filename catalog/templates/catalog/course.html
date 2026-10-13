@@ -4,6 +4,8 @@
 {% block title %}{{ course.title }} · DSAI Vault{% endblock %}
 {% block crumbs %}<a href="{% url 'catalog:home' %}">Courses</a>{% icon "next" %}<span>{{ course.title }}</span>{% endblock %}
 
+{% block editing %}<a class="btn btn--small btn--tonal" href="{% url 'editor:about' course.slug %}">Description and topics</a>{% endblock %}
+
 {% block content %}
 <header class="page-head">
   {% include "components/years.html" %}

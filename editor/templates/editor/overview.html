@@ -22,6 +22,8 @@
 </header>
 
 <div class="desk">
+  {% if saved == "same" %}<p class="notice" role="status">{% icon "info" %}Nothing was changed, so there was nothing to save.</p>
+  {% elif saved %}<p class="notice" role="status">{% icon "check" %}Saved. It is on the site now.</p>{% endif %}
   {% if deleted %}<p class="notice" role="status">{% icon "check" %}Removed. It is in the course's <a class="link" href="{% url 'editor:history' course.slug %}">history</a>, should it be wanted back.</p>{% endif %}
 
   {% for section in sections %}
@@ -55,11 +57,37 @@
   </section>
 
   <section class="edit-section">
+    <div class="edit-section__head"><h2>Practice, exams and reference</h2></div>
+    <div class="list">
+      {% for row in shelves %}
+      <a class="list-item" href="{{ row.url }}">
+        <span class="list-item__lead">{% icon row.icon %}</span>
+        <span class="list-item__body"><strong>{{ row.title }}</strong><span class="faint">{{ row.what }}</span></span>
+        <span class="list-item__meta">{% if row.count is not None %}{{ row.count }}{% endif %}{% icon "next" %}</span>
+      </a>
+      {% endfor %}
+    </div>
+  </section>
+
+  <section class="edit-section">
     <div class="edit-section__head">
-      <h2>Everything else</h2>
+      <h2>The course itself</h2>
       <a class="btn btn--small btn--outlined" href="{% url 'editor:files' course.slug %}">All files</a>
     </div>
-    <p class="faint">Flashcards, problems, exams, formulas, the glossary and memory aids have no forms yet. Their files can be opened and changed as text; a new one is still made with the educator kit and handed in.</p>
+    <div class="list">
+      <a class="list-item" href="{% url 'editor:about' course.slug %}">
+        <span class="list-item__lead">{% icon "topic" %}</span>
+        <span class="list-item__body"><strong>Description and topics</strong><span class="faint">What the course page says, and the chapters everything else refers to</span></span>
+        <span class="list-item__meta">{% icon "next" %}</span>
+      </a>
+      {% if user.is_staff %}
+      <a class="list-item" href="{% url 'editor:course_settings' course.slug %}">
+        <span class="list-item__lead">{% icon "tune" %}</span>
+        <span class="list-item__body"><strong>Settings</strong><span class="faint">Title, code, year, semester, colour: the owner's</span></span>
+        <span class="list-item__meta">{% icon "next" %}</span>
+      </a>
+      {% endif %}
+    </div>
   </section>
 
   <section class="edit-section" id="lately">
