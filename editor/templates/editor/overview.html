@@ -1,0 +1,82 @@
+{% extends "editor/base.html" %}
+{% load ui %}
+{% comment %} The editor's front page for one course (editor.views.overview): every page that has
+   a form, a way to write a new one, and what was changed lately. {% endcomment %}
+
+{% block title %}Edit · {{ course.title }}{% endblock %}
+{% block crumbs %}<a href="{{ course.get_absolute_url }}">{{ course.title }}</a>{% icon "next" %}<span>Edit</span>{% endblock %}
+{% block inner_class %}page__inner--narrow{% endblock %}
+
+{% block content %}
+<header class="dash-head">
+  <div>
+    <p class="overline">{{ course.code }}{% if course.year %} · {{ course.year_label }}{% endif %}</p>
+    <h1>Edit this course</h1>
+    <p class="dash-head__lead">What you save is on the site at once, after the same check every course file passes. Your saves within {{ session_minutes }} minutes are one step in the course's history, and a step can be taken back.</p>
+  </div>
+  <div class="dash-head__tools no-print">
+    <a class="btn btn--outlined btn--small" href="{{ course.get_absolute_url }}">View course</a>
+    <a class="btn btn--outlined btn--small" href="{% url 'desk:course' course.series %}">Hand-ins and history</a>
+  </div>
+</header>
+
+<div class="desk">
+  {% if deleted %}<p class="notice" role="status">{% icon "check" %}Removed. It is in the course's history, should it be wanted back.</p>{% endif %}
+
+  {% for section in sections %}
+  <section class="edit-section">
+    <div class="edit-section__head">
+      <h2>{{ section.title }}</h2>
+      <a class="btn btn--small btn--tonal" href="{{ section.new }}">New {{ section.noun }}</a>
+    </div>
+    {% if section.pages %}
+    <div class="list">
+      {% for item in section.pages %}
+      <a class="list-item" href="{{ item.edit }}">
+        <span class="list-item__lead">{% if item.doc.number is not None %}{{ item.doc.number }}{% else %}{% icon section.kind %}{% endif %}</span>
+        <span class="list-item__body"><strong>{{ item.doc.title }}</strong><span class="faint">{{ item.doc.slug }}{% if item.doc.status == "draft" %} · draft{% endif %}</span></span>
+        <span class="list-item__meta">Edit{% icon "next" %}</span>
+      </a>
+      {% endfor %}
+    </div>
+    {% else %}
+    <p class="faint">None yet.</p>
+    {% endif %}
+  </section>
+  {% endfor %}
+
+  <section class="edit-section">
+    <div class="edit-section__head">
+      <h2>Cheat sheet</h2>
+      <a class="btn btn--small btn--tonal" href="{% url 'editor:sheet' course.slug %}">{% if sheet %}Edit{% else %}Write it{% endif %}</a>
+    </div>
+    <p class="faint">{% if sheet %}{{ sheet.title }}: the one page to print.{% else %}The one page to print before the exam. This course has none yet.{% endif %}</p>
+  </section>
+
+  <section class="edit-section">
+    <div class="edit-section__head">
+      <h2>Everything else</h2>
+      <a class="btn btn--small btn--outlined" href="{% url 'editor:files' course.slug %}">All files</a>
+    </div>
+    <p class="faint">Flashcards, problems, exams, formulas, the glossary and memory aids have no forms yet. Their files can be opened and changed as text; a new one is still made with the educator kit and handed in.</p>
+  </section>
+
+  <section class="edit-section" id="lately">
+    <div class="edit-section__head">
+      <h2>Changed lately</h2>
+      <a class="link" href="{% url 'desk:course' course.series %}#history">The whole history</a>
+    </div>
+    {% if steps %}
+    <ol class="steps">
+      {% for step in steps %}
+      <li>
+        <p class="sent__meta"><strong>{{ step.summary|capfirst }}</strong><span>{{ step.created_at|date:"j M Y, H:i" }} · {% if step.user_id == user.pk %}you{% elif step.user %}{{ step.user.get_full_name|default:"another educator" }}{% else %}a former educator{% endif %} · {{ step.get_via_display|lower }}</span><span class="chip sent__status" data-status="{{ step.status }}">{{ step.get_status_display }}</span></p>
+      </li>
+      {% endfor %}
+    </ol>
+    {% else %}
+    <p class="faint">Nothing has been changed on the site since the course was published.</p>
+    {% endif %}
+  </section>
+</div>
+{% endblock %}

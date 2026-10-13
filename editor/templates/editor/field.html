@@ -1,0 +1,8 @@
+{% comment %} One field of a form: its label, the widget, a hint and what is wrong with it.
+   `field` is a bound field ({{ form.title }}); `hint` replaces the field's own help text. {% endcomment %}
+<div class="form__field">
+  <label for="{{ field.id_for_label }}">{{ field.label }}{% if not field.field.required %} <span class="form__optional">optional</span>{% endif %}</label>
+  {{ field }}
+  {% if hint or field.help_text %}<p class="form__hint">{{ hint|default:field.help_text }}</p>{% endif %}
+  {% for error in field.errors %}<p class="form__error" role="alert">{{ error }}</p>{% endfor %}
+</div>

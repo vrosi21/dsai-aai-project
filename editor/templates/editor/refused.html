@@ -1,0 +1,20 @@
+{% load ui %}
+{% comment %} Why a save was not taken (`refused`, made by editor.views._refusal from a
+   desk.handins.Refused). Nothing changed on the site; what was typed is still in the form
+   `form_id`, which the button below submits. {% endcomment %}
+<div class="refused" role="alert">
+  <p class="refused__head">{% icon "warning" %}{{ refused.head }}</p>
+  {% if refused.kind == "conflict" %}
+  <p>{{ refused.lines.0 }} What you typed is still in the form.{% if current_url %} Open <a class="link" href="{{ current_url }}" target="_blank" rel="noopener">the version on the site</a> in another tab and bring over what you want to keep, or save yours over it.{% endif %} Whatever is replaced stays in the course's history.</p>
+  <p><button class="btn btn--small btn--outlined" type="submit" name="over" value="{{ refused.now }}" form="{{ form_id }}">Save mine over it</button></p>
+  {% elif refused.kind == "invalid" %}
+  <p>This is the check every file of a course passes before it is shown. Line numbers count from the top of the file{% if front_matter %}, the lines between the two <code>---</code> included{% endif %}.</p>
+  <pre class="refused__report">{% for line in refused.lines %}{{ line }}
+{% endfor %}</pre>
+  {% elif refused.kind == "owner" %}
+  <p>In <code>course.yaml</code> the topics and the description belong to the people who write the course. The rest is set by the owner of the site.</p>
+  <ul>{% for line in refused.lines %}<li>{{ line }}</li>{% endfor %}</ul>
+  {% else %}
+  {% for line in refused.lines %}<p>{{ line }}</p>{% endfor %}
+  {% endif %}
+</div>

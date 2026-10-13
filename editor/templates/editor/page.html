@@ -1,0 +1,157 @@
+{% extends "editor/base.html" %}
+{% load ui %}
+{% comment %} The form for one Markdown page (editor.views.page): what the page says about itself
+   (its front matter) as fields, its text in one box with a row of buttons that write the
+   Markdown for you, and beside it the page as the site will show it. The preview is asked
+   from the server, which renders it with the same code that publishes a page. {% endcomment %}
+
+{% block title %}{% if new %}New {{ noun }}{% else %}Edit: {{ page.meta.title }}{% endif %} · {{ course.title }}{% endblock %}
+{% block crumbs %}<a href="{{ course.get_absolute_url }}">{{ course.title }}</a>{% icon "next" %}<a href="{% url 'editor:overview' course.slug %}">Edit</a>{% icon "next" %}<span>{% if new %}New {{ noun }}{% else %}{{ page.meta.title|default:noun|capfirst }}{% endif %}</span>{% endblock %}
+{% block inner_class %}page__inner--wide{% endblock %}
+
+{% block content %}
+<div class="editor" x-data="editor" data-preview="{% url 'editor:preview' course.slug %}" data-file="{{ file }}" data-new="{{ new|yesno:'1,' }}" :data-pane="pane" @keydown="keys($event)">
+  <header class="editor__head">
+    <div>
+      <p class="overline">{% if new %}New {{ noun }}{% elif page.exists %}Editing <code>{{ page.name }}</code>{% else %}This course has no {{ noun }} yet{% endif %}</p>
+      <h1>{% if new %}Write a new {{ noun }}{% elif page.exists %}{{ page.meta.title }}{% else %}Write the {{ noun }}{% endif %}</h1>
+    </div>
+    {# On a narrow screen the form and the preview take turns. #}
+    <div class="editor__panes no-print" role="group" aria-label="What to show">
+      <button class="btn btn--small" type="button" :aria-pressed="pane === 'write'" @click="pane = 'write'">Write</button>
+      <button class="btn btn--small" type="button" :aria-pressed="pane === 'preview'" @click="pane = 'preview'">Preview</button>
+    </div>
+  </header>
+
+  {% if saved == "1" %}<p class="notice notice--top" role="status">{% icon "check" %}Saved. It is on the site now.{% if urls.public %} <a class="link" href="{{ urls.public }}">View the page</a>{% endif %}</p>
+  {% elif saved == "same" %}<p class="notice notice--top" role="status">{% icon "info" %}Nothing was changed, so there was nothing to save.</p>{% endif %}
+  {% if refused %}{% include "editor/refused.html" with form_id="editor-form" current_url=urls.public front_matter=True %}{% endif %}
+
+  <div class="editor__cols">
+    <form class="editor__write form" id="editor-form" method="post" @input="changed($event)" @submit="leaving = true" novalidate>
+      {% csrf_token %}
+      {{ form.seen }}
+      {% for error in form.non_field_errors %}<p class="form__error" role="alert">{{ error }}</p>{% endfor %}
+
+      <div class="editor__top">
+        {% include "editor/field.html" with field=form.title hint="Shown at the top of the page. Do not repeat it as a heading in the text." %}
+        {% if form.number %}{% include "editor/field.html" with field=form.number %}{% endif %}
+      </div>
+      {% if new %}{% include "editor/field.html" with field=form.name %}{% endif %}
+
+      <details class="editor__about"{% if new or form.errors %} open{% endif %}>
+        <summary>About this page <span class="form__optional">topics, summary, takeaways{% if form.date %}, dates{% endif %}</span></summary>
+        <div class="editor__about-body">
+          {% if form.date %}
+          <div class="form__pair">
+            {% include "editor/field.html" with field=form.date %}
+            {% if form.due %}{% include "editor/field.html" with field=form.due hint="The deadline, shown on the page and in the list." %}{% endif %}
+          </div>
+          {% endif %}
+          {% if form.topics %}
+          <fieldset class="form__field">
+            <legend>Topics <span class="form__optional">which of the course's topics this page covers</span></legend>
+            {% if form.topics.field.choices %}
+            <div class="ticks">
+              {% for box in form.topics %}<label class="ticks__item">{{ box.tag }}<span>{{ box.choice_label }}</span></label>{% endfor %}
+            </div>
+            {% else %}<p class="form__hint">The course has no topics yet. They are listed in <a class="link" href="{% url 'editor:file' course.slug %}?name=course.yaml">course.yaml</a>.</p>{% endif %}
+            {% for error in form.topics.errors %}<p class="form__error" role="alert">{{ error }}</p>{% endfor %}
+          </fieldset>
+          {% endif %}
+          {% include "editor/field.html" with field=form.summary hint="One or two plain sentences, shown in lists and under the title." %}
+          {% if form.takeaways %}
+          <div class="form__field">
+            <label>Takeaways <span class="form__optional">three to six things to remember, shown above the text</span></label>
+            {{ form.takeaways }}
+            {% for error in form.takeaways.errors %}<p class="form__error" role="alert">{{ error }}</p>{% endfor %}
+          </div>
+          {% endif %}
+          {% if form.sources %}
+          <div class="form__field">
+            <label>Sources <span class="form__optional">the files under <code>source/</code> this was written from, e.g. lectures/L05.pdf</span></label>
+            {{ form.sources }}
+            {% for error in form.sources.errors %}<p class="form__error" role="alert">{{ error }}</p>{% endfor %}
+          </div>
+          {% endif %}
+          {% if form.status %}{% include "editor/field.html" with field=form.status %}{% endif %}
+        </div>
+      </details>
+
+      <div class="form__field editor__text">
+        <label for="{{ form.body.id_for_label }}">Text</label>
+        {# Each button writes Markdown or LaTeX into the box, around what is selected. #}
+        <div class="toolbar" role="toolbar" aria-label="Formatting">
+          <button type="button" @click="tool('h2')" title="Section heading">H2</button>
+          <button type="button" @click="tool('h3')" title="Subsection heading">H3</button>
+          <span class="toolbar__gap" aria-hidden="true"></span>
+          <button type="button" @click="tool('bold')" title="Bold (Ctrl+B)"><strong>B</strong></button>
+          <button type="button" @click="tool('italic')" title="Italic (Ctrl+I)"><em>I</em></button>
+          <button type="button" @click="tool('code')" title="Inline code"><code>code</code></button>
+          <span class="toolbar__gap" aria-hidden="true"></span>
+          <button type="button" @click="tool('list')" title="Bulleted list">List</button>
+          <button type="button" @click="tool('numbered')" title="Numbered list">1. 2. 3.</button>
+          <button type="button" @click="tool('link')" title="Link: to a web address, or to something in the course, e.g. card:lsq-01">Link</button>
+          <button type="button" @click="tool('table')" title="Table">Table</button>
+          <button type="button" @click="tool('fence')" title="Code block">Code block</button>
+          <span class="toolbar__gap" aria-hidden="true"></span>
+          <button type="button" @click="tool('math')" title="Maths in the line: $x^2$">$x$</button>
+          <button type="button" @click="tool('display')" title="Maths on a line of its own">$$</button>
+          <button type="button" @click="tool('aligned')" title="Several lines of maths, aligned at &amp;">aligned</button>
+          <button type="button" @click="tool('frac')" title="A fraction">a/b</button>
+          <span class="toolbar__gap" aria-hidden="true"></span>
+          <select class="toolbar__select" aria-label="Insert a callout" @change="callout($event)">
+            <option value="">Callout…</option>
+            {% for key, label in callouts %}<option value="{{ key }}">{{ label }}</option>{% endfor %}
+          </select>
+        </div>
+        {{ form.body }}
+        <p class="form__hint">Markdown, with LaTeX between dollar signs. Sections start at <code>##</code>. Link to something in the course by its name: <code>[the derivation](card:lsq-derive)</code>, <code>[](lecture:02-gradient-descent)</code>.</p>
+        {% for error in form.body.errors %}<p class="form__error" role="alert">{{ error }}</p>{% endfor %}
+      </div>
+
+      {# Stays at the bottom of the window, so saving is in reach however long the text is. #}
+      <div class="editor__foot">
+        <button class="btn btn--filled" type="submit">Save</button>
+        <button class="btn btn--tonal" type="submit" name="view" value="1">Save and view</button>
+        <a class="btn" href="{% if urls.public and page.exists %}{{ urls.public }}{% else %}{% url 'editor:overview' course.slug %}{% endif %}" @click="leaving = true">Cancel</a>
+        <span class="editor__unsaved" x-show="dirty" x-cloak>Not saved yet</span>
+      </div>
+      <p class="form__hint">A save is on the site at once. Saves within half an hour are one step in the course's history, and a step can be taken back.</p>
+      {% if page.exists %}
+      <p class="editor__more">
+        <a class="link" href="{{ raw }}" @click="leaving = true">The file as text</a>
+        <a class="link editor__remove" href="{{ urls.delete }}" @click="leaving = true">Remove this page</a>
+      </p>
+      {% endif %}
+    </form>
+
+    <section class="editor__preview" aria-label="Preview">
+      <p class="editor__preview-head"><span class="overline">Preview</span><span class="faint" x-show="pending" x-cloak>updating</span><span class="form__error" x-show="failed" x-cloak>The preview could not be fetched.</span></p>
+      <ul class="editor__problems" x-show="problems.length" x-cloak>
+        <template x-for="(problem, index) in problems" :key="index">
+          <li :data-level="problem.level">
+            <button class="link" type="button" x-show="problem.line" @click="goto(problem.line)" x-text="'Line ' + problem.line"></button>
+            <span x-show="problem.where" x-text="problem.where"></span>
+            <span x-text="problem.message"></span>
+            <span class="faint" x-show="problem.hint" x-text="problem.hint"></span>
+          </li>
+        </template>
+      </ul>
+      <article class="editor__paper">
+        <h1 x-text="title || 'Untitled'">{{ form.title.value|default:"Untitled" }}</h1>
+        <p class="lead" x-show="summary" x-text="summary"></p>
+        <aside class="takeaways" x-show="points.length" x-cloak>
+          <p class="overline">If you remember nothing else</p>
+          <ul>
+            <template x-for="(point, index) in points" :key="index"><li class="md" x-math="point"></li></template>
+          </ul>
+        </aside>
+        {# x-math puts the HTML in and typesets its maths (static/js/math.js). It is the renderer's own HTML, made with raw HTML switched off. #}
+        <div class="prose{% if kind == 'sheet' %} cheatsheet{% endif %}" x-math="html"></div>
+        <p class="faint" x-show="!html && !pending" x-cloak>Nothing written yet.</p>
+      </article>
+    </section>
+  </div>
+</div>
+{% endblock %}

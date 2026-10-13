@@ -16,6 +16,8 @@
     <p class="dash-head__lead">{% if course.ready %}On the site now: {{ course.counts.reading }} note{{ course.counts.reading|pluralize }}, {{ course.counts.cards }} card{{ course.counts.cards|pluralize }}, {{ course.counts.questions }} problem{{ course.counts.questions|pluralize }}. <a class="link" href="{{ course.get_absolute_url }}">Open the course</a>{% else %}Nothing is on the site for this course yet.{% endif %}</p>
   </div>
   <div class="dash-head__tools no-print">
+    {# Two ways to change the course: on the site itself (the editor), or with the kit and a hand-in, below. #}
+    <a class="btn btn--tonal btn--small" href="{% url 'editor:overview' course.slug %}">{% icon "paper" %}Edit on the site</a>
     <a class="btn btn--outlined btn--small" href="{% url 'desk:educators' %}">{% icon "back" %}All your courses</a>
     <a class="btn btn--outlined btn--small" href="{% url 'desk:guide' %}">{% icon "guide" %}The guide</a>
   </div>
@@ -53,7 +55,7 @@
       <ol class="steps">
         {% for step in course.timeline %}
         <li>
-          <p class="sent__meta"><strong>{{ step.summary }}</strong><span>{{ step.created_at|date:"j M Y, H:i" }} · {% if step.user_id == user.pk %}you{% elif step.user %}{{ step.user.get_full_name|default:"another educator" }}{% else %}a former educator{% endif %}</span><span class="chip sent__status" data-status="{{ step.status }}">{{ step.get_status_display }}</span></p>
+          <p class="sent__meta"><strong>{{ step.summary }}</strong><span>{{ step.created_at|date:"j M Y, H:i" }} · {% if step.user_id == user.pk %}you{% elif step.user %}{{ step.user.get_full_name|default:"another educator" }}{% else %}a former educator{% endif %}{% if step.via == "site" %} · edited on the site{% endif %}</span><span class="chip sent__status" data-status="{{ step.status }}">{{ step.get_status_display }}</span></p>
           <details class="steps__files"><summary>Files, and this version</summary>
             <ul>
               {% for name in step.new_files %}<li><code>{{ name }}</code> new</li>{% endfor %}

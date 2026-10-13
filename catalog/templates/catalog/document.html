@@ -4,6 +4,8 @@
 {% block title %}{{ doc.title }} · {{ course.title }}{% endblock %}
 {% block crumbs %}<a href="{% url 'catalog:home' %}">Courses</a>{% icon "next" %}<a href="{{ course.get_absolute_url }}">{{ course.title }}</a>{% icon "next" %}<a href="{{ list_url }}">{{ section_title }}</a>{% icon "next" %}<span>{{ doc.title }}</span>{% endblock %}
 
+{% block editing %}<a class="btn btn--small btn--tonal" href="{% url 'editor:'|add:kind course.slug doc.slug %}">Edit this page</a>{% endblock %}
+
 {% block content %}
 <div class="doc" x-data="reader('{{ doc.progress_key }}')">
   <article class="doc__main">

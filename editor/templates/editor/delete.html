@@ -1,0 +1,45 @@
+{% extends "editor/base.html" %}
+{% load ui %}
+{% comment %} Asked before a page is removed (editor.views.delete). A link cannot delete: only a
+   form sent with POST does, and this page is that form. {% endcomment %}
+
+{% block title %}Remove: {{ title }} · {{ course.title }}{% endblock %}
+{% block crumbs %}<a href="{{ course.get_absolute_url }}">{{ course.title }}</a>{% icon "next" %}<a href="{% url 'editor:overview' course.slug %}">Edit</a>{% icon "next" %}<span>Remove</span>{% endblock %}
+{% block inner_class %}page__inner--narrow{% endblock %}
+
+{% block content %}
+<header class="dash-head">
+  <div>
+    <p class="overline">Remove this {{ noun }}</p>
+    <h1>{{ title }}</h1>
+    <p class="dash-head__lead">The page <code>{{ page.name }}</code> goes off the site at once, and with it what people have marked about it: whether they have read it, and how well they said they know it.</p>
+  </div>
+</header>
+
+<div class="desk">
+  {% if refused %}
+  <div class="refused" role="alert">
+    <p class="refused__head">{% icon "warning" %}{{ refused.head }}</p>
+    {% if refused.kind == "invalid" %}
+    <p>Something else in the course still depends on this page, most likely a link to it. Change that first, then remove the page.</p>
+    <pre class="refused__report">{% for line in refused.lines %}{{ line }}
+{% endfor %}</pre>
+    {% elif refused.kind == "conflict" %}
+    <p>{{ refused.lines.0 }} <a class="link" href="{{ urls.delete }}">Look at it again</a> before removing it.</p>
+    {% else %}
+    {% for line in refused.lines %}<p>{{ line }}</p>{% endfor %}
+    {% endif %}
+  </div>
+  {% endif %}
+
+  <form class="form plate" method="post">
+    {% csrf_token %}
+    <input type="hidden" name="seen" value="{{ page.seen }}">
+    <p>Nothing is lost for good: the course as it is now stays in its history, and the step that removes the page can be taken back.</p>
+    <div class="form__foot">
+      <a class="btn" href="{{ urls.edit }}">Keep it</a>
+      <button class="btn btn--danger" type="submit">Remove the page</button>
+    </div>
+  </form>
+</div>
+{% endblock %}

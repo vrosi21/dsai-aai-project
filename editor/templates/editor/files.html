@@ -1,0 +1,40 @@
+{% extends "editor/base.html" %}
+{% load ui %}
+{% comment %} Every file of the course, by folder (editor.views.files). A text file opens as it is. {% endcomment %}
+
+{% block title %}Files · {{ course.title }}{% endblock %}
+{% block crumbs %}<a href="{{ course.get_absolute_url }}">{{ course.title }}</a>{% icon "next" %}<a href="{% url 'editor:overview' course.slug %}">Edit</a>{% icon "next" %}<span>Files</span>{% endblock %}
+{% block inner_class %}page__inner--narrow{% endblock %}
+
+{% block content %}
+<header class="dash-head">
+  <div>
+    <p class="overline">{{ course.code }}</p>
+    <h1>The course's files</h1>
+    <p class="dash-head__lead">A course is these files and nothing else. Lecture notes, labs, homework, guides and the cheat sheet have forms; any text file can also be opened as it is.</p>
+  </div>
+</header>
+
+<div class="desk">
+  {% for where, entries in folders.items %}
+  <section class="edit-section">
+    <div class="edit-section__head"><h2><code>{{ where }}</code></h2></div>
+    <div class="list">
+      {% for entry in entries %}
+      {% if entry.text %}
+      <a class="list-item" href="{{ file_url }}?name={{ entry.name|urlencode }}">
+        <span class="list-item__body"><strong>{{ entry.last }}</strong></span>
+        <span class="list-item__meta">{{ entry.size|filesizeformat }}{% icon "next" %}</span>
+      </a>
+      {% else %}
+      <div class="list-item">
+        <span class="list-item__body"><strong>{{ entry.last }}</strong><span class="faint">an image</span></span>
+        <span class="list-item__meta">{{ entry.size|filesizeformat }}</span>
+      </div>
+      {% endif %}
+      {% endfor %}
+    </div>
+  </section>
+  {% endfor %}
+</div>
+{% endblock %}

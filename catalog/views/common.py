@@ -21,8 +21,9 @@ def load_course(request, slug, active=""):
     it with a note saying so: that is how a course is looked at before it opens."""
     course = get_object_or_404(Course, slug=slug)
     is_open = switches(request).is_open(course)
-    # Asked only for a course that is closed, so an open one costs no extra query.
-    if not is_open and not may_write(request.user, course.series or course.slug):
+    # One query for someone signed in who is not staff: do they write this course?
+    can_edit = may_write(request.user, course.series or course.slug)
+    if not is_open and not can_edit:
         raise Http404
     data = course_data(course)
     context = {
@@ -33,6 +34,11 @@ def load_course(request, slug, active=""):
         "manifest": data["manifest"],
         "active": active,
         "closed": not is_open,
+        # For the people who write the course: its pages offer to be edited, and show
+        # their edit buttons once that is switched on (editor.views.switch keeps the
+        # choice in the session).
+        "can_edit": can_edit,
+        "editing": can_edit and bool(request.session.get("editing")),
         # The years this course exists in, newest first, for the switch at the top.
         # Lazy: only the course's front page shows the switch, so only it pays the query.
         "editions": SimpleLazyObject(lambda: editions.of(course)),

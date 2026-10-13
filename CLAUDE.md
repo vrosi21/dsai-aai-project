@@ -18,9 +18,10 @@ is saved to their account.
 - `courses/` is a git repository of its own (the content repository, see
   [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md#course-files-and-the-educator-kit)). Commit there
   only when asked, and never anything under a `source/` folder.
-- Educators hand their work in on the site, where it goes live at once. To bring a
-  hand-in into the course files, download it from the admin (Hand-ins) and run
-  `manage.py import_course <zip>`. Never unpack one by hand: the command is what checks it.
+- Educators hand their work in on the site, or edit the course there, and either goes
+  live at once. To bring that into the course files, download the newest step from the
+  admin (Hand-ins) and run `manage.py import_course <zip>`. Never unpack one by hand: the
+  command is what checks it.
 - Do not touch Python, templates, CSS or JavaScript. If the site cannot show something,
   report it; do not change code to make it fit.
 - Finish with `uv run python manage.py sync_content <course>` printing no errors.
@@ -90,6 +91,9 @@ desk/        what people send in (Ask or report, applications to write a course)
              switches for a course, notifications (the bell), the announcements the
              owner writes in the admin, and the message to the owner's bot when
              something arrives
+editor/      changing a course on the site, for the people who write it: forms filled
+             from the course's files, a preview, and a save that goes through
+             desk/handins.py like a hand-in. No models of its own
 ingest/      files -> database: schemas, Markdown renderer, sync, management commands
 templates/   base page and shared fragments
 static/      CSS, JavaScript (no build step), vendored libraries, fonts, icons
@@ -138,6 +142,13 @@ To sign in locally press "Development sign-in" on the landing page.
   must stay: it is built on the version the site has, what it removes is confirmed by
   the person, and the whole course as it stood is kept with every hand-in. Never write
   into the owner's course files from the application.
+- A course changes on the site through `desk.handins` and nowhere else: `take` for a
+  zip, `change` for an edit made in the editor. Both lock the course, validate all of
+  it, and leave a step in its history that can be taken back. A new way to change
+  content is a new caller of `change`, never a view that writes files.
+- The editor writes YAML with `ingest/yamledit.py` only (LaTeX goes in literal blocks,
+  where a backslash is safe), and what a form may contain is decided by
+  `ingest/schemas.py`, the same models the importer uses, not by the form.
 - When something happens that a person should hear of, leave them a notification
   (`desk.notices.tell`): what happened and where to look, never who sent it or what it
   says.

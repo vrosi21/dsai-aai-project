@@ -1,0 +1,8 @@
+{% extends "catalog/course_base.html" %}
+{% load static %}
+{% comment %} Every page of the editor. It is a page inside a course (same navigation, same hue),
+   with the editor's own stylesheet added and without the bar that offers to edit: here
+   one is editing already. {% endcomment %}
+
+{% block head %}<link rel="stylesheet" href="{% static 'css/editor.css' %}">{% endblock %}
+{% block editbar %}{% endblock %}

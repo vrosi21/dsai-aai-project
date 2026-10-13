@@ -18,6 +18,7 @@
   <link rel="stylesheet" href="{% static 'css/components.css' %}">
   <link rel="stylesheet" href="{% static 'css/prose.css' %}">
   <link rel="stylesheet" href="{% static 'css/study.css' %}">
+  {% block head %}{% endblock %}
   {% include "components/icons.html" %}
 </head>
 <body>
@@ -93,7 +94,8 @@
         {% if closed %}
         <div class="banner" role="status">
           {% icon "hidden" %}
-          <span>Students cannot see this course yet; you can, as an administrator. To open it: Admin, Courses, tick it, <strong>Open to students</strong>.</span>
+          {% if user.is_staff %}<span>Students cannot see this course yet; you can, as an administrator. To open it: Admin, Courses, tick it, <strong>Open to students</strong>.</span>
+          {% else %}<span>Students cannot see this course yet; you can, because you write it. The owner of the site opens it.</span>{% endif %}
         </div>
         {% endif %}
         {% if stale %}
@@ -102,6 +104,7 @@
           <span>Files for this course changed after the last sync. Run <code>manage.py sync_content {{ course.slug }}</code> to see them.</span>
         </div>
         {% endif %}
+        {% block editbar %}{% endblock %}
         {% block content %}{% endblock %}
       </div>
     </main>

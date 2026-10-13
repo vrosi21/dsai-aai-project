@@ -1,0 +1,38 @@
+{% extends "editor/base.html" %}
+{% load ui %}
+{% comment %} One text file of the course, as it is (editor.views.file): the way to change what has
+   no form of its own. Saving runs the same check as everything else, so a file that
+   would break the course is not taken. {% endcomment %}
+
+{% block title %}{{ name }} · {{ course.title }}{% endblock %}
+{% block crumbs %}<a href="{{ course.get_absolute_url }}">{{ course.title }}</a>{% icon "next" %}<a href="{% url 'editor:overview' course.slug %}">Edit</a>{% icon "next" %}<a href="{% url 'editor:files' course.slug %}">Files</a>{% icon "next" %}<span>{{ name }}</span>{% endblock %}
+
+{% block content %}
+<div class="editor editor--file" x-data="editor" @keydown="keys($event)">
+  <header class="editor__head">
+    <div>
+      <p class="overline">The file as text</p>
+      <h1><code>{{ name }}</code></h1>
+    </div>
+  </header>
+
+  {% if saved == "1" %}<p class="notice notice--top" role="status">{% icon "check" %}Saved. It is on the site now.</p>
+  {% elif saved == "same" %}<p class="notice notice--top" role="status">{% icon "info" %}Nothing was changed, so there was nothing to save.</p>{% endif %}
+  {% if refused %}{% include "editor/refused.html" with form_id="editor-form" %}{% endif %}
+
+  <form class="form" id="editor-form" method="post" @input="changed($event)" @submit="leaving = true" novalidate>
+    {% csrf_token %}
+    {{ form.seen }}
+    <div class="form__field editor__text editor__text--code">
+      <label for="{{ form.text.id_for_label }}">{% if is_course_file %}What the course is, and its topics{% else %}Contents{% endif %}</label>
+      {{ form.text }}
+      <p class="form__hint">{% if is_course_file %}The topics and the description are the educators' to change; the other settings belong to the owner of the site. A topic's <code>id</code> is permanent.{% else %}YAML is strict about spaces: two per level, never a tab. The <code>id</code> of a card, a question, a formula, a term or a hook is permanent, because people's progress is stored under it.{% endif %}</p>
+    </div>
+    <div class="editor__foot">
+      <button class="btn btn--filled" type="submit">Save</button>
+      <a class="btn" href="{% url 'editor:files' course.slug %}" @click="leaving = true">Cancel</a>
+      <span class="editor__unsaved" x-show="dirty" x-cloak>Not saved yet</span>
+    </div>
+  </form>
+</div>
+{% endblock %}

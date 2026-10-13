@@ -30,6 +30,7 @@ COPY ingest ingest
 COPY progress progress
 COPY accounts accounts
 COPY desk desk
+COPY editor editor
 COPY templates templates
 COPY static static
 COPY deploy/smoke.py deploy/smoke.py

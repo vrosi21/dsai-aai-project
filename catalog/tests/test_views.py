@@ -292,15 +292,16 @@ class PageTests(CourseTestCase):
         """A guard against N+1 queries: the count must not grow with the content.
 
         Two of each are for the request itself: the session, then the signed-in user;
-        one is the owner's switches (is this course open?) and one is the bell at the top
-        (this person's notifications). The course's front
+        one is the owner's switches (is this course open?), one asks whether this person
+        writes the course (they are offered to edit it; staff are not asked), and one is
+        the bell at the top (this person's notifications). The course's front
         page has three more: its years, whether this person has it on their dashboard,
         and what this person has been shown (tour, news). A course whose file does not
         say that someone writes it costs one more there: the list of educators."""
         self.get("course", C)  # warm the per-course cache
-        with self.assertNumQueries(13):
+        with self.assertNumQueries(14):
             self.get("course", C)
-        with self.assertNumQueries(7):
+        with self.assertNumQueries(8):
             self.get("deck", C, "least-squares")
 
     def test_home_is_the_dashboard_once_signed_in(self):

@@ -189,6 +189,10 @@ class HandIn(models.Model):
         MERGED = "merged", "In the published files"
         WITHDRAWN = "withdrawn", "Taken off the site"
 
+    class Via(models.TextChoices):
+        KIT = "kit", "Handed in as a zip"
+        SITE = "site", "Edited on the site"
+
     # SET_NULL: when a person deletes their account, what they added to a course stays,
     # without their name.
     user = models.ForeignKey(
@@ -211,6 +215,12 @@ class HandIn(models.Model):
     lines_added = models.PositiveIntegerField(default=0)
     lines_removed = models.PositiveIntegerField(default=0)
     archive = models.BinaryField()
+    # How it came: a zip made by the kit, or the editor on the site. Editing on the site
+    # is saved many times in a sitting; those saves are one step (desk/handins.py), which
+    # is what `updated_at` (the last of them) and `saves` (how many) are about.
+    via = models.CharField(max_length=4, choices=Via, default=Via.KIT)
+    updated_at = models.DateTimeField(null=True, blank=True)
+    saves = models.PositiveIntegerField(default=1)
 
     class Meta:
         ordering = ["-created_at"]
@@ -221,6 +231,10 @@ class HandIn(models.Model):
 
     @property
     def summary(self):
+        if self.version == self.base_version:
+            # Only a step made in the editor can end where it began: a zip that changes
+            # nothing is not taken in.
+            return "changed, and changed back"
         return handin.summary(
             len(self.new_files), self.lines_added, self.lines_removed, len(self.removed_files)
         )

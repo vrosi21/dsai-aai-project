@@ -520,6 +520,9 @@ validates everything and writes to the database only if nothing is wrong. So one
 both the check and the going live. A refusal (`Refused`, with a kind and the lines of the
 reason) changes nothing and is shown on the page with what to do about it.
 
+An edit made on the site is the same thing without the zip (`handins.change`, see
+[The editor](#the-editor-changing-a-course-on-the-site)).
+
 **Nothing is lost.** Each `HandIn` row keeps the whole course as it stood after that step
 (`archive`, a zip in the database, which is what backups contain), with the version
 before and after. The steps of a course are its history: on the course's page each can
@@ -589,6 +592,81 @@ arrives after being given the role (`welcome()["educator_tour"]`), before any ne
 stays in Settings beside the first tour. [desk/templates/desk/guide.html](../desk/templates/desk/guide.html)
 is the long form: the kit's README told from the site's side.
 
+## The editor: changing a course on the site
+
+[editor/](../editor/) lets the people who write a course change it in the browser: the
+same people as a hand-in (`desk.access.may_write`: its educators, and staff), all
+addresses under `/edit/<course>/`. It has no models. An edit is a hand-in that the site
+makes itself, so everything a hand-in is held to holds here, and the owner's course
+files are still never written by the application.
+
+```
+form in the browser -> editor view -> the new text of ONE file -> desk.handins.change()
+                                                                    lock, checks, sync,
+                                                                    a step in the history
+```
+
+**Reading.** The database holds a course rendered, which is no use to someone who wants
+to change the text. [editor/source.py](../editor/source.py) reads the file itself from
+`ingest.live.folder(slug)`: `load_page` splits a Markdown page into its front matter (a
+dict) and its body, `fingerprint` is the SHA-256 of the file as loaded, which the form
+carries along (`seen`).
+
+**The form.** [editor/forms.py](../editor/forms.py) `PageForm` draws a page's front
+matter field by field and its text in one box. Which fields a kind of page is asked for
+is `SHOWN`; what a file holds beyond those is kept. What the fields may contain is not
+decided there: `clean()` builds the front matter and gives it to
+`ingest.schemas.DocMeta`, the model the importer checks a file against, so a field's
+error is the importer's own message. `Rows` is a widget for a list of lines (takeaways,
+sources): one box each, all under one name, read back with `getlist`.
+
+**Writing.** `source.compose` makes the file's new text and leaves alone what was not
+changed: a page whose front matter was not touched keeps it byte for byte (comments, key
+order, `[a, b]` lists), and saving without a change gives the same file, which is
+reported as nothing to save. Front matter that did change is written by
+[ingest/yamledit.py](../ingest/yamledit.py), the opposite direction of `yamlio.py`: one
+canonical layout, and anything with a line break or a backslash as a literal block, where
+LaTeX cannot be damaged. A test reads back every YAML file of the example course through
+it.
+
+**Saving** is `desk.handins.change(user, course, edit)`. `edit` is a function that is
+given the course's files as they are at that moment, under the course's lock, and
+returns them as they should be; `source.save` passes one that checks the fingerprint
+first (`Refused("conflict")` if the file is no longer what the form was filled from),
+then replaces or removes the one file. `change` then does what `take` does for a zip:
+the file rules (`ingest.handin.check`), the owner's fields of `course.yaml` (skipped for
+staff, who act for the owner), `sync_course` on a staged copy, a `HandIn` row with
+`via="site"`. It differs in two places, both because the edit is made from the site's
+own version by hand: there is no "built on your copy" test, and no second confirmation
+for what it removes.
+
+**Saves and steps.** Someone editing saves often. Saves by one person within
+`handins.SESSION` (30 minutes) of each other extend one `HandIn` (`saves`, `updated_at`,
+and its summary recomputed against the version the step began from), so the history
+reads as sittings, and others are told once per step. A save that removes a file always
+begins a step, so the one before it still holds that file. A step made on the site is
+taken back like any other.
+
+**Reading one course cheaply.** `live.folder(slug)` is asked on every page of the
+editor. `handins.overlay` answers it from the folder already unpacked for the newest
+step (its `.handin` marker says which step and version), with one query that leaves the
+archives in the database; `live.folders()`, which a sync asks, stays exact.
+
+**The preview** (`POST /edit/<course>/preview/`) renders the text with
+`ingest.markdown.Renderer`, the importer's own, and returns the HTML with whatever the
+renderer objected to, line by line. Links are resolved against an index of the course
+that `source.resolver` keeps per process until the course's `content_hash` changes.
+Nothing is stored. The browser typesets the maths with the KaTeX it already has
+([editor.js](../static/js/components/editor.js) uses the `x-math` directive of
+[math.js](../static/js/math.js)) and lists what KaTeX refuses beside the server's
+objections. The same component is the toolbar (buttons that write Markdown and LaTeX
+around the selection) and the question before leaving with unsaved text.
+
+**Where it shows.** `load_course` puts `can_edit` and `editing` in the context of every
+course page. `catalog/course_base.html` draws an Edit switch for those who may write the
+course; it posts to `editor:switch`, which keeps the choice in the session. Switched on,
+a page fills the `editing` block with what it offers (`Edit this page`, `New lecture`).
+
 ## Tests
 
 `manage.py test` runs Django's test runner.
@@ -620,6 +698,13 @@ is the long form: the kit's README told from the site's side.
   person wrote. The bot is never contacted: the one function that opens a connection is
   replaced. Code queued with `transaction.on_commit` does not run inside a test's
   transaction, so those tests use `captureOnCommitCallbacks(execute=True)`.
+- [editor/tests/](../editor/tests/): who gets in; a form filled from a file and saved
+  untouched changes nothing; a change to the text leaves the front matter's bytes alone
+  and the reverse; a new page and its address; removing, and not removing what is linked
+  to; two people on one page; the preview's HTML and line numbers; the owner told once
+  per step. What an edit may do to a course is tested with the hand-ins
+  (`EditedOnTheSiteTests` in desk/tests/test_handins.py), and the writer in
+  [ingest/tests/test_yamledit.py](../ingest/tests/test_yamledit.py).
 - [catalog/tests/test_welcome.py](../catalog/tests/test_welcome.py): who is offered the
   tour, who the news, and that each is offered once per account.
 

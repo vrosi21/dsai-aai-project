@@ -36,4 +36,27 @@
 {% endif %}
 {% endblock %}
 
+{% comment %} For the people who write the course (`can_edit`, from load_course): a switch that
+   turns editing on, and with it on, what this page offers to edit. A page says that by
+   filling the `editing` block; the editor's own pages leave the whole bar out. {% endcomment %}
+{% block editbar %}
+{% if can_edit %}
+<div class="editbar no-print"{% if editing %} data-on{% endif %}>
+  {% if editing %}
+  <span class="editbar__label">{% icon "paper" %}Editing</span>
+  <div class="editbar__tools">
+    {% block editing %}{% endblock %}
+    <a class="btn btn--small" href="{% url 'editor:overview' course.slug %}">All of the course</a>
+  </div>
+  {% endif %}
+  <form method="post" action="{% url 'editor:switch' course.slug %}">
+    {% csrf_token %}
+    <input type="hidden" name="next" value="{{ request.get_full_path }}">
+    <input type="hidden" name="to" value="{% if editing %}off{% else %}on{% endif %}">
+    <button class="btn btn--small{% if not editing %} btn--outlined{% endif %}" type="submit">{% if editing %}Done{% else %}{% icon "paper" %}Edit{% endif %}</button>
+  </form>
+</div>
+{% endif %}
+{% endblock %}
+
 {% block data %}{{ manifest|json_script:"course-manifest" }}{% endblock %}

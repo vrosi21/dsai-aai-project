@@ -91,6 +91,8 @@ INSTALLED_APPS = [
     "progress",
     # What people send the owner, who writes which course, the owner's switches.
     "desk",
+    # Changing a course on the site itself: forms for the people who write it.
+    "editor",
 ]
 
 # Everything is behind a sign-in unless a view opts out with @login_not_required (the
@@ -370,6 +372,9 @@ RATE_LIMITS = [
     # The forms that write to the owner. Nobody sends thirty requests a minute by hand.
     ("desk", "/ask/", 30),
     ("desk", "/educators/", 30),
+    # The editor asks for a preview after every pause in typing, and a save re-reads the
+    # whole course: generous for someone writing, far below what a loop would ask.
+    ("edit", "/edit/", 180),
 ]
 
 # Django's cache framework: named stores behind one API. "default" keeps each course's

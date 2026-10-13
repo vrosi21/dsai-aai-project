@@ -1,0 +1,20 @@
+{% load ui %}{% comment %} The widget of editor.forms.Rows: one box per line of a list. The boxes that exist are
+   written by the server, so they are sent even if no script runs; the script only adds a
+   copy of the blank row, or takes a row out (static/js/components/editor.js). {% endcomment %}
+<div class="rows" x-data="rows">
+  <div class="rows__list" x-ref="list">
+    {% for row in widget.value %}
+    <div class="rows__row">
+      <input type="text" name="{{ widget.name }}" value="{{ row }}" aria-label="Line {{ forloop.counter }}">
+      <button class="icon-btn" type="button" @click="remove($event)" aria-label="Remove this line">{% icon "close" %}</button>
+    </div>
+    {% endfor %}
+  </div>
+  <template x-ref="blank">
+    <div class="rows__row">
+      <input type="text" name="{{ widget.name }}" value="" aria-label="New line">
+      <button class="icon-btn" type="button" @click="remove($event)" aria-label="Remove this line">{% icon "close" %}</button>
+    </div>
+  </template>
+  <button class="btn btn--small btn--outlined" type="button" @click="add()">{{ widget.add }}</button>
+</div>

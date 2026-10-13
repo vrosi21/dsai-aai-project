@@ -1,0 +1,350 @@
+/* The editor (editor/templates/editor/): a form on the left, the page it makes on the
+   right. Loaded only by the editor's pages. Built from the tokens, like everything else;
+   the fields themselves are styled by .form__field in study.css. */
+
+@layer layout {
+  /* Two columns of reading width need more room than a page of prose. */
+  .page__inner--wide {
+    max-width: 108rem;
+  }
+}
+
+@layer study {
+  .editor {
+    display: grid;
+    gap: var(--s5);
+  }
+  .editor__head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: end;
+    justify-content: space-between;
+    gap: var(--s3) var(--s5);
+    & h1 {
+      font-size: var(--text-2xl);
+      font-weight: 650;
+      letter-spacing: -0.015em;
+      line-height: 1.2;
+      overflow-wrap: anywhere;
+    }
+    & code {
+      font-family: var(--font-mono);
+      font-size: 0.92em;
+    }
+  }
+  /* Write | Preview: only where the two do not fit side by side (below). */
+  .editor__panes {
+    display: none;
+    gap: 2px;
+    padding: 2px;
+    border-radius: var(--r-control);
+    background: var(--surface-mid);
+    & .btn {
+      color: var(--on-surface-variant);
+    }
+    & .btn[aria-pressed="true"] {
+      background: var(--surface-raised);
+      color: var(--on-surface);
+      box-shadow: var(--shadow-1);
+    }
+  }
+  .editor__cols {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    align-items: start;
+    gap: var(--s6);
+  }
+  .editor--file .form {
+    max-width: 64rem;
+  }
+  .editor__write {
+    min-width: 0;
+  }
+  /* The title, with the number beside it. */
+  .editor__top {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 9rem;
+    gap: var(--s4);
+    &:has(> :only-child) {
+      grid-template-columns: minmax(0, 1fr);
+    }
+  }
+  /* What the page says about itself, folded away once it is filled in. */
+  .editor__about {
+    border-radius: var(--r-m);
+    background: var(--surface-low);
+    & > summary {
+      padding: var(--s3) var(--s4);
+      border-radius: var(--r-m);
+      font-weight: 600;
+      cursor: pointer;
+      &:hover {
+        background: var(--state-hover);
+      }
+    }
+  }
+  .editor__about-body {
+    display: grid;
+    gap: var(--s5);
+    padding: var(--s3) var(--s4) var(--s5);
+  }
+
+  /* ---- the text box and its buttons -------------------------------------------------- */
+  .toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 2px;
+    padding: var(--s1);
+    border-radius: var(--r-control) var(--r-control) 0 0;
+    background: var(--surface-mid);
+    & button {
+      min-width: 2rem;
+      min-height: 2rem;
+      padding: 0 var(--s2);
+      border-radius: var(--r-xs);
+      font-size: var(--text-s);
+      font-weight: 600;
+      color: var(--on-surface-variant);
+      white-space: nowrap;
+      transition: background var(--dur-1) var(--ease);
+      &:hover {
+        background: var(--state-hover);
+        color: var(--on-surface);
+      }
+      & code {
+        font-family: var(--font-mono);
+        font-weight: 500;
+      }
+    }
+  }
+  .toolbar__gap {
+    width: 1px;
+    height: 1.125rem;
+    margin: 0 var(--s1);
+    background: var(--outline);
+    opacity: 0.5;
+  }
+  /* The same select as everywhere, at the size of the buttons beside it. */
+  .form__field .toolbar select {
+    width: auto;
+    min-height: 2rem;
+    padding-block: 0;
+    padding-left: var(--s2);
+    border-radius: var(--r-xs);
+    background-color: transparent;
+    background-position: right var(--s2) center;
+    padding-right: calc(var(--s2) + 1.125rem);
+    box-shadow: none;
+    font-size: var(--text-s);
+    font-weight: 600;
+    color: var(--on-surface-variant);
+    &:hover {
+      background-color: var(--state-hover);
+      box-shadow: none;
+    }
+  }
+  .editor__text {
+    gap: 0;
+    & > label {
+      margin-bottom: var(--s2);
+    }
+    & > .form__hint,
+    & > .form__error {
+      margin-top: var(--s2);
+    }
+  }
+  .form__field.editor__text textarea {
+    min-height: 30rem;
+    border-radius: 0 0 var(--r-control) var(--r-control);
+    font-family: var(--font-mono);
+    font-size: var(--text-s);
+    line-height: 1.65;
+    tab-size: 2;
+  }
+  .form__field.editor__text--code textarea {
+    min-height: 34rem;
+    border-radius: var(--r-control);
+    white-space: pre;
+    overflow-x: auto;
+  }
+  .form__hint code {
+    font-family: var(--font-mono);
+    font-size: 0.95em;
+  }
+  /* Save stays in reach however long the text is. */
+  .editor__foot {
+    position: sticky;
+    bottom: 0;
+    z-index: 2;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--s2);
+    padding: var(--s3) 0;
+    background: var(--surface);
+    box-shadow: 0 -1px 0 var(--outline-variant);
+  }
+  .editor__unsaved {
+    margin-left: auto;
+    font-size: var(--text-s);
+    font-weight: 600;
+    color: var(--shaky);
+  }
+  .editor__more {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--s2) var(--s5);
+    font-size: var(--text-s);
+  }
+  .editor__remove {
+    color: var(--missed);
+  }
+
+  /* ---- a list with one box per line (editor/widgets/rows.html) ----------------------- */
+  .rows {
+    display: grid;
+    justify-items: start;
+    gap: var(--s2);
+  }
+  .rows__list {
+    display: grid;
+    gap: var(--s2);
+    width: 100%;
+    &:empty {
+      display: none;
+    }
+  }
+  .rows__row {
+    display: flex;
+    align-items: center;
+    gap: var(--s1);
+    & input {
+      flex: 1;
+      min-width: 0;
+    }
+  }
+
+  /* ---- the preview ------------------------------------------------------------------ */
+  .editor__preview {
+    position: sticky;
+    top: calc(var(--topbar) + var(--s3));
+    display: grid;
+    align-content: start;
+    gap: var(--s3);
+    min-width: 0;
+    max-height: calc(100dvh - var(--topbar) - var(--s5));
+    overflow-y: auto;
+    scrollbar-width: thin;
+    scrollbar-color: var(--outline-variant) transparent;
+  }
+  .editor__preview-head {
+    display: flex;
+    align-items: baseline;
+    gap: var(--s3);
+    font-size: var(--text-s);
+  }
+  .editor__paper {
+    display: grid;
+    gap: var(--s4);
+    min-width: 0;
+    padding: clamp(var(--s4), 2.4vw, var(--s6));
+    border-radius: var(--r-l);
+    background: var(--surface-raised);
+    box-shadow: inset 0 0 0 1px var(--outline-variant);
+    & > h1 {
+      font-size: var(--text-2xl);
+      font-weight: 650;
+      letter-spacing: -0.015em;
+      line-height: 1.2;
+      overflow-wrap: anywhere;
+    }
+    & .takeaways {
+      margin-bottom: 0;
+    }
+    & .prose {
+      min-width: 0;
+      overflow-wrap: anywhere;
+    }
+  }
+  /* What the renderer objects to, as it is typed. */
+  .editor__problems {
+    display: grid;
+    gap: var(--s2);
+    padding: var(--s3) var(--s4);
+    border-radius: var(--r-m);
+    background: var(--missed-container);
+    color: var(--on-missed-container);
+    font-size: var(--text-s);
+    list-style: none;
+    & li {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 2px var(--s2);
+    }
+    & .link {
+      color: inherit;
+      font-weight: 600;
+      text-decoration: underline;
+    }
+    /* The hint goes under what it is a hint to. */
+    & .faint {
+      flex-basis: 100%;
+      color: inherit;
+      opacity: 0.8;
+      overflow-wrap: anywhere;
+    }
+  }
+
+  /* ---- the editor's front page -------------------------------------------------------- */
+  .edit-section {
+    display: grid;
+    gap: var(--s3);
+  }
+  .edit-section__head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--s2) var(--s4);
+    & h2 {
+      font-size: var(--text-l);
+      font-weight: 650;
+    }
+    & code {
+      font-family: var(--font-mono);
+      font-size: 0.9em;
+    }
+  }
+
+  /* Side by side only where both columns keep a readable width. */
+  @media (max-width: 84rem) {
+    .editor__panes {
+      display: flex;
+    }
+    .editor__cols {
+      grid-template-columns: minmax(0, 1fr);
+    }
+    .editor[data-pane="write"] .editor__preview,
+    .editor[data-pane="preview"] .editor__write {
+      display: none;
+    }
+    .editor__preview {
+      position: static;
+      max-height: none;
+      overflow: visible;
+    }
+  }
+  @media (max-width: 36rem) {
+    .editor__top {
+      grid-template-columns: minmax(0, 1fr);
+    }
+    /* Three buttons on one line of a phone. */
+    .editor__foot .btn {
+      padding: 0 var(--s4);
+    }
+    .editor__unsaved {
+      flex-basis: 100%;
+    }
+  }
+}

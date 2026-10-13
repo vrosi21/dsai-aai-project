@@ -89,6 +89,7 @@
           {# Two different places: where the course is worked on, and the course itself. #}
           <a class="btn btn--tonal btn--small" href="{{ course.desk_url }}">Manage{% icon "forward" %}</a>
           <a class="btn btn--outlined btn--small" href="{{ course.get_absolute_url }}">View course</a>
+          <a class="btn btn--outlined btn--small" href="{% url 'editor:overview' course.slug %}">{% icon "paper" %}Edit on the site</a>
           {# A form, because the site also notes which version this person now has. #}
           <form method="post" action="{% url 'desk:files' course.series %}">{% csrf_token %}<button class="btn btn--outlined btn--small" type="submit">{% icon "download" %}Download the course files</button></form>
         </div>

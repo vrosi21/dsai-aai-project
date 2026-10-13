@@ -36,6 +36,8 @@ urlpatterns = [
     path("api/progress/", include("progress.urls")),
     # Asking and reporting (/ask/), and everything about educators (/educators/).
     path("", include("desk.urls")),
+    # Editing a course on the site, for the people who write it.
+    path("edit/", include("editor.urls")),
     path("", include("catalog.urls")),
 ]
 
