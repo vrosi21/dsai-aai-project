@@ -18,6 +18,13 @@ urlpatterns = [
     path("<slug:course>/preview/", views.preview, name="preview"),
     path("<slug:course>/files/", views.files, name="files"),
     path("<slug:course>/file/", views.file, name="file"),
+    # The course's history: its steps, one step, going back to it; and the versions of
+    # one file (named in ?name=, as a file's name has slashes in it).
+    path("<slug:course>/history/", views.history, name="history"),
+    path("<slug:course>/history/<int:pk>/", views.step, name="step"),
+    path("<slug:course>/history/<int:pk>/restore/", views.restore, name="restore"),
+    path("<slug:course>/history/file/", views.versions, name="versions"),
+    path("<slug:course>/history/file/version/", views.version, name="version"),
     path("<slug:course>/cheatsheet/", views.page, {"kind": "sheet"}, name="sheet"),
     path("<slug:course>/cheatsheet/delete/", views.delete, {"kind": "sheet"}, name="sheet_delete"),
 ]

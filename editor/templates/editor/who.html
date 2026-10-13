@@ -1,0 +1,2 @@
+{% comment %} Who made a step, as the people who write the course see it: the same words as on their
+   Educators page (desk/course.html). `step` is a desk.HandIn. {% endcomment %}{% if step.user_id == user.pk %}you{% elif step.user %}{{ step.user.get_full_name|default:"another educator" }}{% else %}a former educator{% endif %}

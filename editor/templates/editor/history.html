@@ -1,0 +1,43 @@
+{% extends "editor/base.html" %}
+{% load ui %}
+{% comment %} The course's history (editor.views.history): every step, newest first. A step is a
+   zip that was handed in, or a sitting of edits made on the site. {% endcomment %}
+
+{% block title %}History · {{ course.title }}{% endblock %}
+{% block crumbs %}<a href="{{ course.get_absolute_url }}">{{ course.title }}</a>{% icon "next" %}<a href="{% url 'editor:overview' course.slug %}">Edit</a>{% icon "next" %}<span>History</span>{% endblock %}
+{% block inner_class %}page__inner--narrow{% endblock %}
+
+{% block content %}
+<header class="dash-head">
+  <div>
+    <p class="overline">{{ course.code }}{% if course.year %} · {{ course.year_label }}{% endif %}</p>
+    <h1>History</h1>
+    <p class="dash-head__lead">Every step keeps the whole course as it stood. Open one to see what it changed, line by line, to download the course as it was, or to bring that version back.</p>
+  </div>
+  <div class="dash-head__tools no-print">
+    <a class="btn btn--outlined btn--small" href="{% url 'editor:overview' course.slug %}">{% icon "back" %}Edit</a>
+  </div>
+</header>
+
+<div class="desk">
+  {% if restored == "same" %}<p class="notice" role="status">{% icon "info" %}The course is that version already.</p>
+  {% elif restored %}<p class="notice" role="status">{% icon "check" %}Brought back. The course on the site is that version again; what was there is the step before, in this list.</p>{% endif %}
+
+  {% if steps %}
+  <ol class="steps">
+    {% for step in steps %}
+    <li>
+      <p class="sent__meta">
+        <a class="link" href="{% url 'editor:step' course.slug step.pk %}"><strong>{{ step.summary|capfirst }}</strong></a>
+        <span>{{ step.created_at|date:"j M Y, H:i" }} · {% include "editor/who.html" %} · {{ step.get_via_display|lower }}{% if step.saves > 1 %}, {{ step.saves }} saves{% endif %}</span>
+        <span class="chip sent__status" data-status="{{ step.status }}">{{ step.get_status_display }}</span>
+        {% if step.version == now %}<span class="chip">what the site shows</span>{% endif %}
+      </p>
+    </li>
+    {% endfor %}
+  </ol>
+  {% else %}
+  <p class="faint">Nothing has been changed on the site since the course was published. The first hand-in or edit starts the history, and keeps the course as it was before it.</p>
+  {% endif %}
+</div>
+{% endblock %}

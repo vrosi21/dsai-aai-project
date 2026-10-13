@@ -121,6 +121,7 @@
       {% if page.exists %}
       <p class="editor__more">
         <a class="link" href="{{ raw }}" @click="leaving = true">The file as text</a>
+        <a class="link" href="{{ earlier }}" @click="leaving = true">Earlier versions</a>
         <a class="link editor__remove" href="{{ urls.delete }}" @click="leaving = true">Remove this page</a>
       </p>
       {% endif %}

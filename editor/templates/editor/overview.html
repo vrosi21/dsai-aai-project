@@ -16,12 +16,13 @@
   </div>
   <div class="dash-head__tools no-print">
     <a class="btn btn--outlined btn--small" href="{{ course.get_absolute_url }}">View course</a>
-    <a class="btn btn--outlined btn--small" href="{% url 'desk:course' course.series %}">Hand-ins and history</a>
+    <a class="btn btn--outlined btn--small" href="{% url 'editor:history' course.slug %}">{% icon "history" %}History</a>
+    <a class="btn btn--outlined btn--small" href="{% url 'desk:course' course.series %}">Hand-ins</a>
   </div>
 </header>
 
 <div class="desk">
-  {% if deleted %}<p class="notice" role="status">{% icon "check" %}Removed. It is in the course's history, should it be wanted back.</p>{% endif %}
+  {% if deleted %}<p class="notice" role="status">{% icon "check" %}Removed. It is in the course's <a class="link" href="{% url 'editor:history' course.slug %}">history</a>, should it be wanted back.</p>{% endif %}
 
   {% for section in sections %}
   <section class="edit-section">
@@ -64,13 +65,13 @@
   <section class="edit-section" id="lately">
     <div class="edit-section__head">
       <h2>Changed lately</h2>
-      <a class="link" href="{% url 'desk:course' course.series %}#history">The whole history</a>
+      <a class="link" href="{% url 'editor:history' course.slug %}">The whole history</a>
     </div>
     {% if steps %}
     <ol class="steps">
       {% for step in steps %}
       <li>
-        <p class="sent__meta"><strong>{{ step.summary|capfirst }}</strong><span>{{ step.created_at|date:"j M Y, H:i" }} · {% if step.user_id == user.pk %}you{% elif step.user %}{{ step.user.get_full_name|default:"another educator" }}{% else %}a former educator{% endif %} · {{ step.get_via_display|lower }}</span><span class="chip sent__status" data-status="{{ step.status }}">{{ step.get_status_display }}</span></p>
+        <p class="sent__meta"><a class="link" href="{% url 'editor:step' course.slug step.pk %}"><strong>{{ step.summary|capfirst }}</strong></a><span>{{ step.created_at|date:"j M Y, H:i" }} · {% if step.user_id == user.pk %}you{% elif step.user %}{{ step.user.get_full_name|default:"another educator" }}{% else %}a former educator{% endif %} · {{ step.get_via_display|lower }}</span><span class="chip sent__status" data-status="{{ step.status }}">{{ step.get_status_display }}</span></p>
       </li>
       {% endfor %}
     </ol>

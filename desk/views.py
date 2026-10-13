@@ -269,8 +269,8 @@ def _desks(request, roles, *, handed="", refused=None):
     asked = Request.objects.filter(series__in=series, status=Request.Status.NEW).exclude(
         kind=Request.Kind.IDEA
     )
-    # defer(): the zip of each hand-in stays in the database; a list needs its summary.
-    steps = HandIn.objects.filter(series__in=series).defer("archive").select_related("user")
+    # light(): what each step kept stays in the database; a list needs its summary.
+    steps = HandIn.objects.filter(series__in=series).light().select_related("user")
     desks = []
     # Their courses are read directly, not from the catalogue: an educator may be
     # writing a course that students cannot see yet.
@@ -521,11 +521,12 @@ def handin_zip(request, pk):
     record = get_object_or_404(HandIn, pk=pk)
     if not _may_write(request.user, record.series):
         raise Http404
-    data = bytes(record.archive)
+    # The zip is made here, from the files the step kept: the same files always give
+    # the same zip (ingest.handin.pack_files), so it is as if it had been stored.
+    note = None
     if request.user.is_staff:
-        slug, files = handin.unzip(data, handins.MAX_UNPACKED)
         note = {"handin": record.pk, "version": record.version, "base": handins.root_base(record)}
-        data = handin.pack_files(slug, files, note)
+    data = handin.pack_files(record.slug, handins.kept(record), note)
     response = HttpResponse(data, content_type="application/zip")
     name = f"{record.slug}-version-{record.pk}.zip"
     response["Content-Disposition"] = f'attachment; filename="{name}"'

@@ -141,8 +141,9 @@ def compose(page, meta, body):
 
 
 def save(user, course, name, text, seen):
-    """Make `text` the file `name` of the course (None removes the file). `seen` is the
-    fingerprint the form was filled from; "" says the file was not there.
+    """Make `text` the file `name` of the course (None removes the file; bytes are taken
+    as they are). `seen` is the fingerprint the form was filled from; "" says the file
+    was not there.
 
     Returns what handins.change returns; raises handins.Refused, and then nothing changed.
     """
@@ -161,7 +162,7 @@ def save(user, course, name, text, seen):
         if text is None:
             del files[name]
         else:
-            files[name] = text.encode("utf-8")
+            files[name] = text if isinstance(text, bytes) else text.encode("utf-8")
         return files
 
     return handins.change(user, course, edit)

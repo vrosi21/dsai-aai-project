@@ -524,7 +524,9 @@ class TellingTests(EditorCase):
         page = self.client.get("/admin/desk/handin/")
         self.assertContains(page, "Edited on the site")
         step = HandIn.objects.get()
-        self.assertContains(self.client.get(f"/admin/desk/handin/{step.pk}/change/"), GUIDE)
+        page = self.client.get(f"/admin/desk/handin/{step.pk}/change/")
+        self.assertContains(page, f"<code>{GUIDE}</code> 2 lines removed or rewritten")
+        self.assertNotContains(page, step.files[GUIDE])  # what changed, not every file's hash
 
 
 class ClosedCourseTests(EditorCase):

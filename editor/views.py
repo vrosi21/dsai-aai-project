@@ -11,21 +11,24 @@ worked answers with a redirect, so the page that follows is a plain GET. Reloadi
 going back to it, never sends the form a second time.
 """
 
+from datetime import datetime
+
 from django.db import transaction
 from django.http import Http404, JsonResponse
-from django.shortcuts import redirect, render
+from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils.http import url_has_allowed_host_and_scheme
 from django.views.decorators.http import require_POST
 
 from catalog.models import Document
 from catalog.views.common import load_course
-from desk import handins, mail
+from desk import blobs, handins, mail
 from desk.models import HandIn
 from desk.notify import notify
 from ingest import handin
 from ingest.markdown import CALLOUTS
 
+from . import history as versions_of
 from . import source
 from .forms import FileForm, PageForm
 
@@ -98,8 +101,8 @@ def overview(request, course):
     context.update(
         sections=sections,
         sheet=next((doc for doc in pages if doc.kind == SHEET), None),
-        # defer(): a list of steps needs their summaries, not the course each one kept.
-        steps=HandIn.objects.filter(slug=course.slug).defer("archive").select_related("user")[:5],
+        # light(): a list of steps needs their summaries, not the course each one kept.
+        steps=HandIn.objects.filter(slug=course.slug).light().select_related("user")[:5],
         session_minutes=int(handins.SESSION.total_seconds() // 60),
         deleted=request.GET.get("deleted"),
     )
@@ -126,19 +129,25 @@ def _save(request, course, name, text, seen):
 
     Raises handins.Refused, and then nothing changed and nobody is told."""
     step, fresh = source.save(request.user, course, name, text, seen)
-    if fresh and not request.user.is_staff:  # the owner need not be told what they did
-        url = request.build_absolute_uri(reverse("admin:desk_handin_change", args=[step.pk]))
-        title = f"Edited on the site: {course.title}"
-        message = "It is live. Open the admin to see it or to take it back."
-        level = "warning" if step.removes else "info"
-        key = f"dsai-handin-{step.pk}"
-
-        def tell():
-            notify(title, message, level=level, url=url, dedupe_key=key)
-            mail.send_owner(title, message, url)
-
-        transaction.on_commit(tell)
+    _tell(request, course, step, fresh)
     return step
+
+
+def _tell(request, course, step, fresh):
+    """The owner's bot and the site's own address, once per step."""
+    if not fresh or request.user.is_staff:  # the owner need not be told what they did
+        return
+    url = request.build_absolute_uri(reverse("admin:desk_handin_change", args=[step.pk]))
+    title = f"Edited on the site: {course.title}"
+    message = "It is live. Open the admin to see it or to take it back."
+    level = "warning" if step.removes else "info"
+    key = f"dsai-handin-{step.pk}"
+
+    def tell():
+        notify(title, message, level=level, url=url, dedupe_key=key)
+        mail.send_owner(title, message, url)
+
+    transaction.on_commit(tell)
 
 
 def _refusal(error, noun="page"):
@@ -222,6 +231,7 @@ def page(request, course, kind, name=None):
         # Where the preview looks for images: beside the file.
         file=current.name or source.page_name(kind, "new"),
         raw=f"{reverse('editor:file', args=[course.slug])}?name={current.name}",
+        earlier=f"{reverse('editor:versions', args=[course.slug])}?name={current.name}",
         callouts=[(key, label) for key, (label, _folded) in CALLOUTS.items()],
     )
     return render(request, "editor/page.html", context)
@@ -304,6 +314,7 @@ def file(request, course):
         refused=refused,
         saved=request.GET.get("saved"),
         is_course_file=name == "course.yaml",
+        earlier=f"{reverse('editor:versions', args=[course.slug])}?name={name}",
     )
     return render(request, "editor/file.html", context)
 
@@ -321,3 +332,126 @@ def preview(request, course):
         return JsonResponse({"error": "too long to preview"}, status=413)
     shown = source.preview(course, name, body, request.POST.getlist("takeaways")[:30])
     return JsonResponse(shown)
+
+
+# ---- the history ---------------------------------------------------------------------------
+
+
+def history(request, course):
+    """Every step of the course, newest first."""
+    course, context = _open(request, course)
+    context.update(
+        steps=HandIn.objects.filter(slug=course.slug).light().select_related("user"),
+        restored=request.GET.get("restored"),
+        now=handin.content_version(source.folder(course)),
+    )
+    return render(request, "editor/history.html", context)
+
+
+def _step_page(request, course, context, row, refused=None):
+    began, after = handins.before(row), handins.kept(row)
+    changes = versions_of.compare(began, after) if began is not None else None
+    now = handin.content_version(source.folder(course))
+    # The saves of a sitting, when there was more than one: which files each changed.
+    saves = [
+        {"at": datetime.fromisoformat(entry["at"]), "files": sorted(entry["files"].items())}
+        for entry in row.trail
+    ]
+    context.update(
+        step=row,
+        changes=changes,
+        saves=saves if len(saves) > 1 else [],
+        is_now=row.version == now,
+        refused=refused,
+        versions_url=reverse("editor:versions", args=[course.slug]),
+        version_url=reverse("editor:version", args=[course.slug]),
+    )
+    return render(request, "editor/step.html", context)
+
+
+def step(request, course, pk):
+    """One step: what it changed, line by line, and the way back to it."""
+    course, context = _open(request, course)
+    row = get_object_or_404(HandIn.objects.select_related("user"), pk=pk, slug=course.slug)
+    return _step_page(request, course, context, row)
+
+
+@require_POST
+def restore(request, course, pk):
+    """Make the course what it was after a step. That is a new step, built on what is
+    there now: nothing leaves the history, and it can be taken back like any other."""
+    course, context = _open(request, course)
+    row = get_object_or_404(HandIn.objects.select_related("user"), pk=pk, slug=course.slug)
+    if request.POST.get("sure") != "yes":
+        return redirect(f"{reverse('editor:step', args=[course.slug, row.pk])}?unsure=1#restore")
+    wanted = handins.kept(row)
+    try:
+        made, fresh = handins.change(request.user, course, lambda _files: dict(wanted))
+    except handins.Refused as error:
+        if error.kind == "nothing":
+            return redirect(f"{reverse('editor:history', args=[course.slug])}?restored=same")
+        return _step_page(request, course, context, row, _refusal(error, "course"))
+    _tell(request, course, made, fresh)
+    return redirect(f"{reverse('editor:history', args=[course.slug])}?restored={row.pk}")
+
+
+def versions(request, course):
+    """Every version one file has had."""
+    course, context = _open(request, course)
+    name = request.GET.get("name", "")
+    found = versions_of.versions(course, name) if source.plain(name) else []
+    exists = source.read(course, name) is not None
+    if not found and not exists:
+        raise Http404
+    context.update(
+        name=name,
+        versions=found,
+        exists=exists,
+        version_url=reverse("editor:version", args=[course.slug]),
+    )
+    return render(request, "editor/versions.html", context)
+
+
+def version(request, course):
+    """One version of one file: what it said, how it differs from the file as it is now,
+    and (POST) putting it back."""
+    course, context = _open(request, course)
+    name = request.GET.get("name", "")
+    sha = request.GET.get("sha", "")
+    found = versions_of.versions(course, name) if source.plain(name) else []
+    # Only a version this file of this course really had: a hash alone opens nothing.
+    this = next((item for item in found if item.sha and item.sha == sha), None)
+    data = blobs.one(sha) if this is not None else None
+    if data is None:
+        raise Http404
+    current = source.read(course, name)
+    refused, stale = None, False
+    if request.method == "POST":
+        # The page showed what putting this back would change. If the file is no longer
+        # what that was compared with, show the comparison again instead of saving.
+        stale = request.POST.get("seen", "") != source.fingerprint(current)
+        if not stale:
+            try:
+                _save(request, course, name, data, source.fingerprint(current))
+            except handins.Refused as error:
+                if error.kind == "conflict":
+                    stale = True
+                elif error.kind != "nothing":
+                    refused = _refusal(error, "file")
+        if not stale and refused is None:
+            return redirect(f"{reverse('editor:versions', args=[course.slug])}?name={name}&put=1")
+        current = source.read(course, name)
+    change = versions_of.compare({name: current} if current is not None else {}, {name: data})
+    context.update(
+        name=name,
+        version=this,
+        text=data.decode("utf-8", errors="replace")
+        if name.lower().endswith(tuple(handin.TEXT))
+        else None,
+        change=change[0] if change else None,
+        seen=source.fingerprint(current),
+        refused=refused,
+        stale=stale,
+        versions_url=f"{reverse('editor:versions', args=[course.slug])}?name={name}",
+    )
+    return render(request, "editor/version.html", context)

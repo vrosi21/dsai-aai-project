@@ -65,7 +65,7 @@
               {% if step.removed_ids %}<li>ids gone: {{ step.removed_ids|join:", " }}</li>{% endif %}
             </ul>
             {# The backup: the whole course as it stood after this step. #}
-            <p><a class="link" href="{% url 'desk:handin_zip' step.pk %}">Download the course as it was after this step</a></p>
+            <p><a class="link" href="{% url 'desk:handin_zip' step.pk %}">Download the course as it was after this step</a> · <a class="link" href="{% url 'editor:step' step.slug step.pk %}">What it changed, line by line</a></p>
           </details>
           {% if course.undo and course.undo.pk == step.pk %}
           <form class="steps__undo" method="post" action="{% url 'desk:take_back' step.pk %}">{% csrf_token %}<button class="btn btn--small" type="submit">Take it back</button><span class="form__hint">The site returns to the version before it. Your copy keeps the work.</span></form>

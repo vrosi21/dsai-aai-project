@@ -14,10 +14,11 @@ checks it and, if it passes, the course on the site becomes that version at once
 4. In course.yaml only the topics and the description are theirs.
 5. The site's own validation, all of it, must pass.
 
-Nothing is ever lost by a hand-in. Each one is kept whole in the database
-(`HandIn.archive`: the course as it stood after it), so every earlier version can be
-fetched again, and a hand-in can be taken back (`withdraw`), which puts the course back
-to the version before it.
+Nothing is ever lost by a hand-in. Each one is kept whole in the database (`HandIn.files`
+and `before`: the course as it stood after the step and when it began, each file's bytes
+stored once in desk/blobs.py), so every earlier version can be fetched again, and a
+hand-in can be taken back (`withdraw`), which puts the course back to the version before
+it.
 
 An edit made on the site (the `editor` app) is the same thing without the zip: `change`
 makes the next version from the one the site has, and it passes the same checks, lands in
@@ -53,7 +54,7 @@ from ingest import handin, live
 from ingest.discover import find_courses
 from ingest.sync import sync_course
 
-from . import notices
+from . import blobs, notices
 from .models import Educator, HandIn
 
 MAX_UPLOAD = 25 * 1024 * 1024  # the zip itself
@@ -177,7 +178,8 @@ def take(user, course, upload, *, confirmed=False):
             removed_ids=change.ids,
             lines_added=change.lines_added,
             lines_removed=change.lines_removed,
-            archive=handin.pack_files(slug, files),
+            files=blobs.put(files),
+            before=blobs.put(current),
         )
         (target / MARKER).write_text(_mark(record), encoding="utf-8")
     remember(user, course.series, record.version)
@@ -222,13 +224,32 @@ def files_at(slug, version):
     knows. It is what one of the steps on record left behind, or the owner's own files."""
     row = HandIn.objects.filter(slug=slug, version=version).order_by("-pk").first()
     if row is not None:
-        return handin.unzip(bytes(row.archive), MAX_UNPACKED)[1]
+        return kept(row)
+    began = HandIn.objects.filter(slug=slug, base_version=version).order_by("-pk").first()
+    if began is not None and began.before:
+        return blobs.get(began.before)
     owner = find_courses(settings.CONTENT_ROOTS).get(slug)
     if owner is not None:
         files = handin.files_of(owner)
         if handin.version_of(files) == version:
             return files
     return None
+
+
+def kept(row):
+    """The course as it stood after this step: {name: bytes}."""
+    if row.files:
+        return blobs.get(row.files)
+    # A step from before the blob store that could not be converted still has its zip.
+    return handin.unzip(bytes(row.archive), MAX_UNPACKED)[1]
+
+
+def before(row):
+    """The course as it stood when this step began, or None if that is not on record
+    (a step from before the site kept it, whose starting point has since moved on)."""
+    if row.before:
+        return blobs.get(row.before)
+    return files_at(row.slug, row.base_version) if row.base_version else None
 
 
 def _session(user, slug, version):
@@ -238,7 +259,7 @@ def _session(user, slug, version):
     newest = (
         HandIn.objects.filter(slug=slug, status=HandIn.Status.LIVE)
         .order_by("-created_at", "-pk")
-        .defer("archive")
+        .defer("archive", "files")
         .first()
     )
     if newest is None or newest.via != HandIn.Via.SITE or newest.user_id != user.pk:
@@ -297,28 +318,32 @@ def change(user, course, edit):
         step = None if gone else _session(user, slug, now)
         target = _go_live(slug, files)
         fresh = step is None
+        after = blobs.put(files)
         if fresh:
             done = handin.compare(current, files)
             step = HandIn(user=user, series=course.series, slug=slug, base_version=now)
             step.via = HandIn.Via.SITE
+            step.before = blobs.put(current)
         else:
-            # The step grows: what it did is now everything since it began. If the site
-            # no longer has the version it began from, add this save to what it says.
-            before = files_at(slug, step.base_version)
-            done = handin.compare(before if before is not None else current, files)
-            if before is None:
-                done.added = sorted({*step.new_files, *done.added} - set(done.removed))
-                done.removed = sorted({*step.removed_files, *done.removed} - set(done.added))
-                done.grown = _sum(step.grown, done.grown)
-                done.shrunk = _sum(step.shrunk, done.shrunk)
-                done.ids = sorted({*step.removed_ids, *done.ids})
+            # The step grows: what it did is now everything since it began.
+            done = handin.compare(blobs.get(step.before), files)
             step.saves += 1
             step.updated_at = timezone.now()
-        step.version = version
+        # What this one save changed. The step itself keeps only where it ends up, so
+        # this is where a text that a later save of the sitting replaces can be found.
+        changed = {
+            name: after.get(name)
+            for name in {*current, *files}
+            if current.get(name) != files.get(name)
+        }
+        step.trail = [
+            *step.trail,
+            {"at": timezone.now().isoformat(timespec="seconds"), "files": changed},
+        ]
+        step.version, step.files = version, after
         step.new_files, step.removed_files = done.added, done.removed
         step.grown, step.shrunk, step.removed_ids = done.grown, done.shrunk, done.ids
         step.lines_added, step.lines_removed = done.lines_added, done.lines_removed
-        step.archive = handin.pack_files(slug, files)
         step.save()
         (target / MARKER).write_text(_mark(step), encoding="utf-8")
 
@@ -339,10 +364,6 @@ def change(user, course, edit):
             url=f"/admin/desk/handin/{step.pk}/change/",
         )
     return step, fresh
-
-
-def _sum(one, other):
-    return {name: one.get(name, 0) + other.get(name, 0) for name in {*one, *other}}
 
 
 def remember(user, series, version):
@@ -409,9 +430,9 @@ def overlay(base, *, settle=False, notes=None, only=None):
     Whether the owner's files have caught up is a question for the next sync: until one
     has run, the site shows the hand-in either way.
     """
-    # defer(): each row carries a whole course as a zip. Only the newest of a course is
-    # ever opened, and that one is fetched when it is asked for.
-    rows = HandIn.objects.filter(status=HandIn.Status.LIVE).defer("archive")
+    # light(): each row names every file of a course. Only the newest of a course is
+    # ever opened, and what it kept is fetched when it is asked for.
+    rows = HandIn.objects.filter(status=HandIn.Status.LIVE).light()
     if only is not None:
         rows = rows.filter(slug=only)
     try:
@@ -432,7 +453,7 @@ def overlay(base, *, settle=False, notes=None, only=None):
             if ready is not None:
                 result[slug] = ready
                 continue
-        _slug, files = handin.unzip(bytes(row.archive), MAX_UNPACKED)
+        files = kept(row)
         if _included(owner, row, files):
             if settle:
                 HandIn.objects.filter(slug=slug, status=HandIn.Status.LIVE).update(

@@ -33,6 +33,7 @@
       <a class="btn" href="{% url 'editor:files' course.slug %}" @click="leaving = true">Cancel</a>
       <span class="editor__unsaved" x-show="dirty" x-cloak>Not saved yet</span>
     </div>
+    <p class="editor__more"><a class="link" href="{{ earlier }}" @click="leaving = true">Earlier versions of this file</a></p>
   </form>
 </div>
 {% endblock %}

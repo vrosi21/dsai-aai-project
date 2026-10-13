@@ -1,11 +1,13 @@
 """Hand-ins: an educator uploads their course and the site takes it in (desk/handins.py,
 ingest/handin.py). The example course is the course being written."""
 
+import importlib
 import io
 import shutil
 import zipfile
 from unittest import mock
 
+from django.apps import apps as live_apps
 from django.contrib.auth import get_user_model
 from django.core import mail as outbox
 from django.core.cache import caches
@@ -17,9 +19,9 @@ from django.urls import reverse
 from django.utils import timezone
 
 from catalog.models import Card, Course, Document
-from desk import handins
+from desk import blobs, handins
 from desk import mail as desk_mail
-from desk.models import Educator, HandIn, Notification
+from desk.models import Blob, Educator, HandIn, Notification
 from ingest import handin, live
 from ingest.tests.base import CourseTestCase
 
@@ -575,8 +577,8 @@ class EditedOnTheSiteTests(HandInCase):
         self.assertEqual(Card.objects.count(), cards + 1)
         self.assertEqual(live.folder(C), handins.root() / C)
         self.assertNotIn("lsq-extra", self.read(DECK))  # the owner's files are not touched
-        # The archive is the whole course after it, as for any hand-in.
-        _slug, kept = handin.unzip(bytes(step.archive))
+        # It keeps the whole course after it, as any hand-in does.
+        kept = handins.kept(step)
         self.assertIn(b"lsq-extra", kept[DECK])
         self.assertEqual(handin.version_of(kept), step.version)
         # The other educator and the owner hear of it; never who, never what.
@@ -599,7 +601,7 @@ class EditedOnTheSiteTests(HandInCase):
         self.assertEqual(step.new_files, ["content/guides/a-second-look.md"])
         self.assertTrue(Document.objects.filter(slug="a-second-look").exists())
         self.assertTrue(Card.objects.filter(key="lsq-extra").exists())
-        self.assertEqual(handin.version_of(handin.unzip(bytes(step.archive))[1]), step.version)
+        self.assertEqual(handin.version_of(handins.kept(step)), step.version)
         self.assertEqual(Notification.objects.filter(user=self.bob).count(), 1)  # told once
 
     def test_a_pause_begins_a_new_step(self):
@@ -708,13 +710,129 @@ class EditedOnTheSiteTests(HandInCase):
         self.assertFalse(fresh)
         self.assertEqual(HandIn.objects.count(), 2)
 
-    def test_a_page_asks_for_one_course_without_opening_a_single_archive(self):
+    def test_a_page_asks_for_one_course_without_reading_what_any_step_kept(self):
         self.change(self.ada, DECK, NEW_CARD)
         self.change(self.bob, SHEET, "\nOne more line from Bob.\n")
-        with self.assertNumQueries(1), mock.patch.object(handin, "unzip") as unzip:
+        with self.assertNumQueries(1), mock.patch.object(handins, "kept") as kept:
             self.assertEqual(live.folder(C), handins.root() / C)
-        unzip.assert_not_called()
+        kept.assert_not_called()
         # The folder is only a working copy: gone, it comes back from the newest step.
         shutil.rmtree(handins.root() / C)
         self.assertIn("One more line from Bob.", (live.folder(C) / SHEET).read_text("utf-8"))
         self.assertIn("lsq-extra", (live.folder(C) / DECK).read_text("utf-8"))
+
+
+class KeptTests(HandInCase):
+    """How versions are kept (desk/blobs.py): each file once, every step whole."""
+
+    def setUp(self):
+        super().setUp()
+        self.subject = Course.objects.get(slug=C)
+
+    def save(self, user, name, text, *, replace=False):
+        def edit(files):
+            files[name] = (b"" if replace else files.get(name, b"")) + text.encode()
+            return files
+
+        return handins.change(user, self.subject, edit)[0]
+
+    def test_a_file_that_did_not_change_is_stored_once(self):
+        files = len(handin.files_of(self.course))
+        first = self.save(self.ada, SHEET, "\nOne more line.\n")
+        # The course as it was, and the one file as it is now.
+        self.assertEqual(Blob.objects.count(), files + 1)
+        second = self.save(self.bob, DECK, NEW_CARD)
+        self.assertEqual(Blob.objects.count(), files + 2)
+        self.assertEqual(first.files[DECK], first.before[DECK])
+        self.assertEqual(second.before, first.files)
+        self.assertEqual(
+            Blob.objects.get(sha=first.files[SHEET]).size, len(handins.kept(first)[SHEET])
+        )
+
+    def test_a_step_keeps_the_course_as_it_was_before_and_after(self):
+        owners = handin.files_of(self.course)
+        step = self.save(self.ada, SHEET, "\nOne more line.\n")
+        self.assertEqual(handins.before(step), owners)
+        self.assertEqual(handin.version_of(handins.before(step)), step.base_version)
+        # Whatever happens to the owner's files afterwards.
+        self.write(SHEET, "---\ntitle: Another\n---\n\nRewritten.\n")
+        self.assertEqual(handins.before(HandIn.objects.get(pk=step.pk)), owners)
+        self.assertEqual(handins.files_at(C, step.base_version), owners)
+
+    def test_every_save_of_a_sitting_can_still_be_found(self):
+        sheet = self.read(SHEET)
+        self.save(self.ada, SHEET, sheet + "\nA first thought.\n", replace=True)
+        step = self.save(self.ada, SHEET, sheet + "\nA second thought.\n", replace=True)
+        self.assertEqual((step.saves, len(step.trail)), (2, 2))
+        self.assertNotIn(b"first thought", handins.kept(step)[SHEET])  # the step moved on
+        first, second = step.trail
+        self.assertEqual(list(first["files"]), [SHEET])
+        self.assertIn(b"A first thought.", blobs.one(first["files"][SHEET]))
+        self.assertEqual(second["files"][SHEET], step.files[SHEET])
+
+    def test_a_zip_handed_in_is_kept_the_same_way(self):
+        self.written()
+        self.assertEqual(self.hand_in(self.mine).status_code, 302)
+        record = HandIn.objects.get()
+        self.assertIsNone(record.archive)
+        self.assertEqual(handins.kept(record), handin.files_of(self.mine))
+        self.assertEqual(handins.before(record), handin.files_of(self.course))
+        # What is downloaded is made from it, and is the course to the byte.
+        answer = self.client.get(f"/educators/hand-ins/{record.pk}.zip")
+        self.assertEqual(handin.unzip(answer.content)[1], handin.files_of(self.mine))
+        self.assertEqual(answer.content, handin.pack(self.mine))
+
+    def test_a_list_of_steps_does_not_read_what_they_kept(self):
+        self.save(self.ada, SHEET, "\nOne more line.\n")
+        with self.assertNumQueries(1):
+            (row,) = HandIn.objects.filter(slug=C).light()
+            self.assertEqual(row.summary, "2 lines added")
+        self.assertEqual(row.get_deferred_fields(), {"archive", "files", "before", "trail"})
+
+    def test_a_file_missing_from_the_store_is_an_error_not_an_empty_course(self):
+        step = self.save(self.ada, SHEET, "\nOne more line.\n")
+        Blob.objects.filter(sha=step.files[DECK]).delete()
+        with self.assertRaisesMessage(LookupError, DECK):
+            handins.kept(step)
+
+
+class ConvertedTests(HandInCase):
+    """Steps made before the blob store kept the course as a zip. Migration 0007 converts
+    them; its function is run here on rows made the old way."""
+
+    convert = staticmethod(importlib.import_module("desk.migrations.0007_blobs").to_blobs)
+
+    def old_step(self, files, **fields):
+        fields.setdefault("version", handin.version_of(files))
+        return HandIn.objects.create(
+            user=self.ada, series=C, slug=C, archive=handin.pack_files(C, files), **fields
+        )
+
+    def test_a_converted_step_is_the_same_course_to_the_byte(self):
+        files = handin.files_of(self.course)
+        more = {**files, SHEET: files[SHEET] + b"\nOne more line.\n"}
+        first, second = self.old_step(files), self.old_step(more)
+        self.convert(live_apps, None)
+        first.refresh_from_db()
+        second.refresh_from_db()
+        self.assertEqual(sorted(first.files), sorted(files))
+        self.assertEqual((handins.kept(first), handins.kept(second)), (files, more))
+        self.assertEqual(handin.version_of(handins.kept(second)), second.version)
+        self.assertEqual(Blob.objects.count(), len(files) + 1)  # what they share, once
+        self.assertEqual(handin.pack_files(C, handins.kept(first)), bytes(first.archive))
+        # Run again, it finds nothing to do.
+        self.convert(live_apps, None)
+        self.assertEqual(Blob.objects.count(), len(files) + 1)
+
+    def test_a_zip_that_is_not_what_its_step_says_is_left_as_it_is(self):
+        files = handin.files_of(self.course)
+        wrong = self.old_step(files, version="0" * 64)
+        broken = HandIn.objects.create(
+            user=self.ada, series=C, slug=C, version="1" * 64, archive=b"no zip"
+        )
+        self.convert(live_apps, None)
+        wrong.refresh_from_db()
+        broken.refresh_from_db()
+        self.assertEqual((wrong.files, broken.files), ({}, {}))
+        self.assertFalse(Blob.objects.exists())
+        self.assertEqual(handins.kept(wrong), files)  # still read from its zip

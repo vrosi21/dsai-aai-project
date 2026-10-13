@@ -1,0 +1,33 @@
+{% comment %} What changed in one file (`change`, an editor.history.FileChange): the lines that
+   went and the lines that came, with a few unchanged ones around them. Which is which is
+   said by the sign in front of a line, not by its colour alone. `versions_url`, when
+   given, leads to every version the file has had. {% endcomment %}
+<details class="diff" open>
+  <summary class="diff__head">
+    <code>{{ change.name }}</code>
+    <span class="diff__state" data-state="{{ change.state }}">{{ change.state }}</span>
+    {% if change.is_text %}<span class="diff__count"><span class="diff__plus">+{{ change.added }}</span> <span class="diff__minus">−{{ change.removed }}</span></span>{% endif %}
+  </summary>
+  {% if not change.is_text %}
+  <p class="diff__note">Not a text file{% if change.state == "changed" %}: replaced by another{% endif %}.</p>
+  {% elif not change.hunks %}
+  <p class="diff__note">{% if change.cut %}Too long to show here.{% else %}Empty.{% endif %}</p>
+  {% else %}
+  <div class="diff__body">
+    {% for hunk in change.hunks %}
+    <table class="diff__hunk">
+      {% for line in hunk %}
+      <tr data-kind="{{ line.kind }}">
+        <td class="diff__no">{{ line.old|default_if_none:"" }}</td>
+        <td class="diff__no">{{ line.new|default_if_none:"" }}</td>
+        <td class="diff__sign">{% if line.kind == "add" %}+{% elif line.kind == "del" %}−{% endif %}</td>
+        <td class="diff__text">{{ line.text }}</td>
+      </tr>
+      {% endfor %}
+    </table>
+    {% endfor %}
+  </div>
+  {% if change.cut %}<p class="diff__note">And {{ change.cut }} more line{{ change.cut|pluralize }}, not shown.</p>{% endif %}
+  {% endif %}
+  {% if versions_url %}<p class="diff__note"><a class="link" href="{{ versions_url }}?name={{ change.name|urlencode }}">Every version of this file</a></p>{% endif %}
+</details>

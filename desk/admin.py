@@ -235,14 +235,14 @@ class HandInAdmin(CourseColumn, admin.ModelAdmin):
         "status",
         "settled_at",
         "summary",
-        "files",
+        "changed",
         "zip",
     ]
     readonly_fields = fields
 
     def get_queryset(self, request):
-        # The zip of every row would be read just to draw a list: leave it in the database.
-        return super().get_queryset(request).defer("archive")
+        # What each step kept would be read just to draw a list: leave it in the database.
+        return super().get_queryset(request).light()
 
     def has_add_permission(self, request):
         return False  # hand-ins are uploaded on the site, by the educator
@@ -257,7 +257,9 @@ class HandInAdmin(CourseColumn, admin.ModelAdmin):
         return row.user.get_full_name() or row.user.email or row.user.username
 
     @admin.display(description="Files")
-    def files(self, row):
+    def changed(self, row):
+        # Not named `files`: that is a column of the model (every file the step kept),
+        # and the admin shows a model's field in preference to a method of this name.
         new = [(name, "new") for name in row.new_files]
         grown = [(name, f"+{lines} lines") for name, lines in row.grown.items()]
         shrunk = [

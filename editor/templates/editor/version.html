@@ -1,0 +1,51 @@
+{% extends "editor/base.html" %}
+{% load ui %}
+{% comment %} One version of one file (editor.views.version): what it said, what putting it back
+   would change, and the button that does. {% endcomment %}
+
+{% block title %}{{ name }}, {{ version.at|date:"j M H:i" }} · {{ course.title }}{% endblock %}
+{% block crumbs %}<a href="{{ course.get_absolute_url }}">{{ course.title }}</a>{% icon "next" %}<a href="{% url 'editor:history' course.slug %}">History</a>{% icon "next" %}<a href="{{ versions_url }}">{{ name }}</a>{% icon "next" %}<span>{{ version.at|date:"j M, H:i" }}</span>{% endblock %}
+
+{% block content %}
+<header class="dash-head">
+  <div>
+    <p class="overline">{{ version.at|date:"j M Y, H:i" }}{% if version.step %} · {% include "editor/who.html" with step=version.step %}{% else %} · before anything was changed on the site{% endif %}</p>
+    <h1><code>{{ name }}</code></h1>
+    <p class="dash-head__lead">{% if version.current %}This is the file as the site has it now.{% elif seen %}An earlier version of this file.{% else %}This file is not in the course now; this is a version it had.{% endif %}</p>
+  </div>
+  <div class="dash-head__tools no-print">
+    <a class="btn btn--outlined btn--small" href="{{ versions_url }}">{% icon "back" %}Every version</a>
+  </div>
+</header>
+
+<div class="desk">
+  {% if refused %}{% include "editor/refused.html" with form_id="put-back" %}{% endif %}
+  {% if stale %}<p class="notice" role="status">{% icon "info" %}The file changed on the site a moment ago, so nothing was put back. The comparison below is with the file as it is now; press again if this is still what you want.</p>{% endif %}
+
+  {% if not version.current %}
+  <form class="form plate" id="put-back" method="post">
+    {% csrf_token %}
+    <input type="hidden" name="seen" value="{{ seen }}">
+    <h2 class="plate__title">Put this version back</h2>
+    <p>{% if seen %}The file on the site becomes this version; the comparison below shows what that changes.{% else %}The file comes back into the course.{% endif %} It passes the same check as any save, and what it replaces stays in the history.</p>
+    <div class="form__foot"><button class="btn btn--tonal" type="submit">Put it back</button></div>
+  </form>
+  {% endif %}
+
+  {% if change and seen %}
+  <section class="edit-section">
+    <div class="edit-section__head"><h2>From the file as it is now to this version</h2></div>
+    {% include "editor/diff.html" with versions_url="" %}
+  </section>
+  {% endif %}
+
+  {% if text is not None %}
+  <section class="edit-section">
+    <div class="edit-section__head"><h2>What it says</h2></div>
+    <pre class="version-text">{{ text }}</pre>
+  </section>
+  {% else %}
+  <p class="faint">Not a text file, so it is not shown here.</p>
+  {% endif %}
+</div>
+{% endblock %}

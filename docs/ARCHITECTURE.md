@@ -524,12 +524,27 @@ An edit made on the site is the same thing without the zip (`handins.change`, se
 [The editor](#the-editor-changing-a-course-on-the-site)).
 
 **Nothing is lost.** Each `HandIn` row keeps the whole course as it stood after that step
-(`archive`, a zip in the database, which is what backups contain), with the version
-before and after. The steps of a course are its history: on the course's page each can
-be downloaded and, to go back to it, handed in again. An educator can take back their
-own newest hand-in, and the owner any, in the admin (`handins.withdraw`): it and every
-later one for the course are withdrawn, since each was built on the one before, and the
-course is loaded again as it was.
+(`files`) and when the step began (`before`), with the fingerprint of both. The steps of
+a course are its history: each can be looked at line by line, downloaded, and brought
+back ([The history](#the-history-versions-of-a-course)). An educator can take back
+their own newest hand-in, and the owner any, in the admin (`handins.withdraw`): it and
+every later one for the course are withdrawn, since each was built on the one before,
+and the course is loaded again as it was.
+
+**How versions are kept** ([desk/blobs.py](../desk/blobs.py)). As git does it: the bytes
+of a file are one `Blob` row under their SHA-256, and a version of a course is a list of
+names with hashes (`{name: sha}`, a JSON column). A file that did not change between two
+versions is stored once however many steps name it, which is what makes it affordable to
+keep the whole course at every step, images included. `blobs.put(files)` stores a
+version and returns its list, `blobs.get(list)` gives it back, and nothing is ever
+deleted. All of it is in the database, so a backup of the database is a backup of every
+version. `handins.kept(step)` and `handins.before(step)` are the two versions of a step;
+the zip an educator or `import_course` downloads is packed from `kept` when it is asked
+for. Lists of steps are read with `HandIn.objects.light()`, which leaves those columns
+in the database. (Until migration 0007 a step kept a zip, `archive`. The migration
+converts the steps there are, each only if it reproduces its recorded version to the
+byte; the column stays one release longer as their backup, and `kept` still reads it
+for a step that was not converted.)
 
 **Where the site reads a course from** ([ingest/live.py](../ingest/live.py)). The owner's
 course files are a folder the application cannot write to, replaced as a whole by
@@ -645,7 +660,31 @@ for what it removes.
 and its summary recomputed against the version the step began from), so the history
 reads as sittings, and others are told once per step. A save that removes a file always
 begins a step, so the one before it still holds that file. A step made on the site is
-taken back like any other.
+taken back like any other. A step keeps only where it ended, so each save also leaves a
+line in the step's `trail`: when, and which files it changed, by hash. The bytes are in
+the blob store either way; the trail is what makes a text that a later save of the same
+sitting replaced findable again.
+
+### The history: versions of a course
+
+`/edit/<course>/history/` and the pages under it, for the same people as the editor
+([editor/history.py](../editor/history.py), the views at the end of
+[editor/views.py](../editor/views.py)).
+
+- **The steps**, newest first, and **one step**: what it changed in each file, line by
+  line. `history.compare(before, after)` is `difflib.SequenceMatcher` over the lines of
+  each file that differs, grouped into hunks with three lines of context, capped per
+  file and per page. An image is said to be replaced, not shown.
+- **Bring this version back** (`views.restore`) makes the course what it was after a
+  step. It is `handins.change` with a function that returns that version, so it passes
+  every check, is a new step built on what is there now, and can itself be taken back.
+  Nothing is ever removed from the history. A version whose `course.yaml` differs in
+  what is the owner's can be brought back by staff only.
+- **Every version of one file** (`history.versions`): as it was before anything changed
+  on the site, after each step, and after each save within a step, read from `before`,
+  `files` and `trail`. One version can be read, compared with the file as it is now, and
+  put back, which is an ordinary save of that one file. A hash opens a file only if this
+  file of this course really had that version: the list is the access check.
 
 **Reading one course cheaply.** `live.folder(slug)` is asked on every page of the
 editor. `handins.overlay` answers it from the folder already unpacked for the newest
@@ -705,6 +744,11 @@ a page fills the `editing` block with what it offers (`Edit this page`, `New lec
   per step. What an edit may do to a course is tested with the hand-ins
   (`EditedOnTheSiteTests` in desk/tests/test_handins.py), and the writer in
   [ingest/tests/test_yamledit.py](../ingest/tests/test_yamledit.py).
+  [test_history.py](../editor/tests/test_history.py): the comparison itself; a version
+  brought back as a new step; a removed page and a text replaced within one sitting
+  found and put back; that a hash alone opens nothing. How versions are kept
+  (`KeptTests`) and that converted steps are the same course to the byte
+  (`ConvertedTests`, which runs the migration's function) are with the hand-ins.
 - [catalog/tests/test_welcome.py](../catalog/tests/test_welcome.py): who is offered the
   tour, who the news, and that each is offered once per account.
 

@@ -1,0 +1,38 @@
+{% extends "editor/base.html" %}
+{% load ui %}
+{% comment %} Every version one file has had (editor.views.versions): as first published, after
+   each step, and after each save within a step. {% endcomment %}
+
+{% block title %}Versions of {{ name }} · {{ course.title }}{% endblock %}
+{% block crumbs %}<a href="{{ course.get_absolute_url }}">{{ course.title }}</a>{% icon "next" %}<a href="{% url 'editor:overview' course.slug %}">Edit</a>{% icon "next" %}<a href="{% url 'editor:history' course.slug %}">History</a>{% icon "next" %}<span>{{ name }}</span>{% endblock %}
+{% block inner_class %}page__inner--narrow{% endblock %}
+
+{% block content %}
+<header class="dash-head">
+  <div>
+    <p class="overline">Every version of</p>
+    <h1><code>{{ name }}</code></h1>
+    <p class="dash-head__lead">{% if exists %}Open a version to read it, to see how it differs from the file as it is now, or to put it back.{% else %}This file is not in the course now. Open a version to read it or to put it back.{% endif %}</p>
+  </div>
+  <div class="dash-head__tools no-print">
+    <a class="btn btn--outlined btn--small" href="{% url 'editor:history' course.slug %}">{% icon "back" %}History</a>
+  </div>
+</header>
+
+<div class="desk">
+  {% if request.GET.put %}<p class="notice" role="status">{% icon "check" %}Put back. It is on the site now.</p>{% endif %}
+  {% if not versions %}<p class="faint">This file is as it was published: nothing has changed it on the site, so there is no earlier version here.</p>{% endif %}
+  <ol class="steps">
+    {% for version in versions %}
+    <li>
+      <p class="sent__meta">
+        {% if version.sha %}<a class="link" href="{{ version_url }}?name={{ name|urlencode }}&amp;sha={{ version.sha }}"><strong>{{ version.at|date:"j M Y, H:i" }}</strong></a>
+        {% else %}<strong>{{ version.at|date:"j M Y, H:i" }} · removed</strong>{% endif %}
+        <span>{% if version.step %}{% include "editor/who.html" with step=version.step %} · {{ version.step.get_via_display|lower }}{% else %}as it was before anything was changed on the site{% endif %}</span>
+        {% if version.current %}<span class="chip">what the site shows</span>{% endif %}
+      </p>
+    </li>
+    {% endfor %}
+  </ol>
+</div>
+{% endblock %}

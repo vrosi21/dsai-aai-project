@@ -1,0 +1,63 @@
+{% extends "editor/base.html" %}
+{% load ui %}
+{% comment %} One step of the course's history (editor.views.step): who, when, what it changed in
+   each file, and the way back to the course as it was after it. {% endcomment %}
+
+{% block title %}{{ step.summary|capfirst }} · History · {{ course.title }}{% endblock %}
+{% block crumbs %}<a href="{{ course.get_absolute_url }}">{{ course.title }}</a>{% icon "next" %}<a href="{% url 'editor:overview' course.slug %}">Edit</a>{% icon "next" %}<a href="{% url 'editor:history' course.slug %}">History</a>{% icon "next" %}<span>{{ step.created_at|date:"j M, H:i" }}</span>{% endblock %}
+
+{% block content %}
+<header class="dash-head">
+  <div>
+    <p class="overline">{{ step.created_at|date:"j M Y, H:i" }} · {% include "editor/who.html" %} · {{ step.get_via_display|lower }}{% if step.saves > 1 %}, {{ step.saves }} saves, the last at {{ step.updated_at|date:"H:i" }}{% endif %}</p>
+    <h1>{{ step.summary|capfirst }}</h1>
+    <p class="dash-head__lead">{% if is_now %}This is the version the site shows now.{% elif step.status == "withdrawn" %}This step was taken back: the course went on from the version before it.{% else %}The course has changed since this step.{% endif %}{% if step.removed_ids %} Ids that went with it: {{ step.removed_ids|join:", " }}.{% endif %}</p>
+  </div>
+  <div class="dash-head__tools no-print">
+    <a class="btn btn--outlined btn--small" href="{% url 'editor:history' course.slug %}">{% icon "back" %}History</a>
+    <a class="btn btn--outlined btn--small" href="{% url 'desk:handin_zip' step.pk %}">{% icon "download" %}The course after this step</a>
+  </div>
+</header>
+
+<div class="desk">
+  {% if refused %}{% include "editor/refused.html" with form_id="restore" %}{% endif %}
+
+  {% if not is_now %}
+  <form class="form plate" id="restore" method="post" action="{% url 'editor:restore' course.slug step.pk %}">
+    {% csrf_token %}
+    <h2 class="plate__title">Bring this version back</h2>
+    <p>The course on the site becomes what it was after this step: every file. That is a new step on top of what is there now, so nothing leaves the history and it can itself be taken back.</p>
+    <label class="handin__tick"><input type="checkbox" name="sure" value="yes" required><span>Yes: replace the course on the site with this version</span></label>
+    {% if request.GET.unsure %}<p class="form__error" role="alert">Tick the box to say that it is meant.</p>{% endif %}
+    <div class="form__foot"><button class="btn btn--tonal" type="submit">Bring it back</button></div>
+  </form>
+  {% endif %}
+
+  {% if saves %}
+  <section class="edit-section">
+    <div class="edit-section__head"><h2>The saves of this sitting</h2></div>
+    <p class="faint">A step keeps where it ended. What an earlier save of the same sitting wrote is here.</p>
+    <ol class="steps">
+      {% for save in saves %}
+      <li>
+        <p class="sent__meta"><strong>{{ save.at|date:"H:i:s" }}</strong>
+          <span>{% for name, sha in save.files %}{% if sha %}<a class="link" href="{{ version_url }}?name={{ name|urlencode }}&amp;sha={{ sha }}"><code>{{ name }}</code></a>{% else %}<code>{{ name }}</code> removed{% endif %}{% if not forloop.last %}, {% endif %}{% endfor %}</span>
+        </p>
+      </li>
+      {% endfor %}
+    </ol>
+  </section>
+  {% endif %}
+
+  <section class="edit-section">
+    <div class="edit-section__head"><h2>What it changed</h2></div>
+    {% if changes is None %}
+    <p class="faint">The version this step began from is not on record, so it cannot be compared. The course as it was after it can still be downloaded and brought back.</p>
+    {% elif not changes %}
+    <p class="faint">Nothing: it ended where it began.</p>
+    {% else %}
+    {% for change in changes %}{% include "editor/diff.html" %}{% endfor %}
+    {% endif %}
+  </section>
+</div>
+{% endblock %}

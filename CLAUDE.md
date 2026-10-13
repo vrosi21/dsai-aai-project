@@ -146,6 +146,10 @@ To sign in locally press "Development sign-in" on the landing page.
   zip, `change` for an edit made in the editor. Both lock the course, validate all of
   it, and leave a step in its history that can be taken back. A new way to change
   content is a new caller of `change`, never a view that writes files.
+- Every step of a course's history keeps the whole course, as names with hashes whose
+  bytes are in `desk.Blob` (desk/blobs.py). Nothing is deleted from that table, on the
+  server or in a migration: it is the history, and the only copy of what educators
+  wrote on the site until the owner takes it into the course files.
 - The editor writes YAML with `ingest/yamledit.py` only (LaTeX goes in literal blocks,
   where a backslash is safe), and what a form may contain is decided by
   `ingest/schemas.py`, the same models the importer uses, not by the form.

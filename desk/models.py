@@ -174,14 +174,39 @@ class CourseSetting(models.Model):
         return self.series
 
 
+class Blob(models.Model):
+    """The bytes of one file of a course, stored once however many versions of however
+    many courses hold them (desk/blobs.py). The key is the SHA-256 of the bytes, so the
+    same file is the same row, and a row can never be changed into something else."""
+
+    sha = models.CharField(max_length=64, primary_key=True)
+    data = models.BinaryField()
+    size = models.PositiveIntegerField()
+
+    def __str__(self):
+        return f"{self.sha[:12]} ({self.size} bytes)"
+
+
+class HandInQuerySet(models.QuerySet):
+    def light(self):
+        """The steps without what each one kept: for a list, which shows who, when and a
+        summary. A course of two hundred files is two hundred names and hashes per step,
+        twice; a page that lists fifty steps should not read and parse all of that.
+
+        `defer()` leaves columns out of the SELECT. Touching one of them on a row later
+        fetches it, with a query of its own, so this is for code that will not."""
+        return self.defer("archive", "files", "before", "trail")
+
+
 class HandIn(models.Model):
     """What an educator did to a course, taken in by the site (desk/handins.py).
 
     One row is one step in the history of a course: who, when, what was added, changed
-    and removed. `archive` is the whole course as it stood after that step, as a zip.
-    That copy is the hand-in itself, and it is also the backup: the folder the site reads
-    the course from is unpacked from it, and any earlier step can be fetched and handed
-    in again.
+    and removed. `files` is the whole course as it stood after that step, and `before`
+    as it stood when the step began: each a list of names with the hash of the file's
+    bytes, which are in `Blob`. That copy is the step itself, and it is also the backup:
+    the folder the site reads the course from is unpacked from it, any earlier step can
+    be looked at, compared and brought back.
     """
 
     class Status(models.TextChoices):
@@ -214,13 +239,27 @@ class HandIn(models.Model):
     removed_ids = models.JSONField(default=list)  # ids that disappeared with it
     lines_added = models.PositiveIntegerField(default=0)
     lines_removed = models.PositiveIntegerField(default=0)
-    archive = models.BinaryField()
+    # The course after this step and before it: {name inside the course: sha of a Blob}.
+    files = models.JSONField(default=dict)
+    before = models.JSONField(default=dict)
+    # The saves a step made on the site consists of, oldest first: when, and which files
+    # that save changed ({"at": …, "files": {name: sha, or null for a file it removed}}).
+    # A step keeps only where it ended up; this is how a text that a later save of the
+    # same sitting replaced can still be found.
+    trail = models.JSONField(default=list)
+    # Until the blob store, a step kept the course as a zip here. Steps from then were
+    # converted (migration 0007); the column stays one release longer as their backup.
+    archive = models.BinaryField(null=True, blank=True)
     # How it came: a zip made by the kit, or the editor on the site. Editing on the site
     # is saved many times in a sitting; those saves are one step (desk/handins.py), which
     # is what `updated_at` (the last of them) and `saves` (how many) are about.
     via = models.CharField(max_length=4, choices=Via, default=Via.KIT)
     updated_at = models.DateTimeField(null=True, blank=True)
     saves = models.PositiveIntegerField(default=1)
+
+    # as_manager(): `HandIn.objects` gets the query set's own methods, so a list is
+    # asked for as HandIn.objects.filter(…).light().
+    objects = HandInQuerySet.as_manager()
 
     class Meta:
         ordering = ["-created_at"]
