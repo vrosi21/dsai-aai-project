@@ -30,16 +30,25 @@ WINDOW = 60  # seconds
 def who(request):
     """The name a request is counted under: the account, or else the visitor's address.
 
-    The address comes from CF-Connecting-IP, which Cloudflare sets itself and a visitor
-    cannot forge; the server answers nobody but Cloudflare (docs/DEPLOYMENT.md). The
-    connection's own address is only right in development: on the server it is the proxy,
-    the same for everyone.
+    The address comes from X-Visitor-IP, which edge/_worker.js copies from Cloudflare's
+    CF-Connecting-IP on every request. It has to be copied: once the server is itself
+    behind Cloudflare (a Cloudflare Tunnel), the worker's request crosses from one
+    Cloudflare zone to another, and Cloudflare then puts the same placeholder in
+    CF-Connecting-IP for every visitor. Neither header can be forged: the worker replaces
+    whatever a visitor sent as X-Visitor-IP, and the server answers nobody but the worker
+    (docs/DEPLOYMENT.md). CF-Connecting-IP alone is what a worker from before this sends.
+    The connection's own address is only right in development: on the server it is the
+    proxy, the same for everyone.
     """
     # No spaces in these names: they become cache keys, and Django warns about keys that
     # a memcached server could not store.
     if request.user.is_authenticated:
         return f"account-{request.user.pk}"
-    address = request.META.get("HTTP_CF_CONNECTING_IP") or request.META.get("REMOTE_ADDR", "")
+    address = (
+        request.META.get("HTTP_X_VISITOR_IP")
+        or request.META.get("HTTP_CF_CONNECTING_IP")
+        or request.META.get("REMOTE_ADDR", "")
+    )
     return f"address-{address}"
 
 

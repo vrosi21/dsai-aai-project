@@ -24,6 +24,17 @@ export default {
     const upstream = new Request(target, request);
     upstream.headers.set("X-Origin-Auth", env.ORIGIN_SECRET);
 
+    // Who the visitor is, for the site's rate limits (config/ratelimit.py). Cloudflare's
+    // own CF-Connecting-IP does not survive the trip to a server that is itself behind
+    // Cloudflare (a Tunnel): every visitor would arrive with the same placeholder. What a
+    // visitor sent under this name is never passed on.
+    const visitor = request.headers.get("CF-Connecting-IP");
+    if (visitor) {
+      upstream.headers.set("X-Visitor-IP", visitor);
+    } else {
+      upstream.headers.delete("X-Visitor-IP");
+    }
+
     try {
       // "manual": a redirect from Django goes back to the browser, which follows it at the
       // public address. Following it here would return the wrong page under the old URL.

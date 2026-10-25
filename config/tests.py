@@ -121,6 +121,19 @@ class RateLimitTests(TestCase):
         self.assertEqual([visit("203.0.113.5") for _ in range(3)], [200, 200, 429])
         self.assertEqual(visit("203.0.113.9"), 200)  # someone else, behind the same proxy
 
+    @override_settings(RATE_LIMITS=[("sign-in", "/accounts/", 2)])
+    def test_behind_a_tunnel_the_address_the_worker_passes_on_is_what_counts(self):
+        """Through a Cloudflare Tunnel, CF-Connecting-IP is one placeholder for everyone."""
+        placeholder = "2a06:98c0:3600::103"
+
+        def visit(address):
+            return self.client.get(
+                "/accounts/login/", HTTP_CF_CONNECTING_IP=placeholder, HTTP_X_VISITOR_IP=address
+            ).status_code
+
+        self.assertEqual([visit("203.0.113.5") for _ in range(3)], [200, 200, 429])
+        self.assertEqual(visit("203.0.113.9"), 200)  # not refused for the first one's sake
+
     @override_settings(RATE_LIMITS=[("search", "/search/", 1)])
     def test_a_page_is_refused_in_plain_words(self):
         self.client.force_login(self.ada)

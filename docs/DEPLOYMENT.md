@@ -267,7 +267,8 @@ are how it reaches the server.
 
 **Cloudflare Pages project `dsai3`** — [edge/_worker.js](../edge/_worker.js). Receives every
 request for `dsai3.pages.dev`, fetches the same path from `ORIGIN_URL` with the header
-`X-Origin-Auth: <ORIGIN_SECRET>`, and returns the answer unchanged. Redirects are passed
+`X-Origin-Auth: <ORIGIN_SECRET>` and the visitor's address as `X-Visitor-IP`, and returns
+the answer unchanged. Redirects are passed
 back to the browser rather than followed. Both values are secrets of the Pages project.
 It is uploaded with `wrangler`, not by CI, because it changes about never.
 
@@ -558,8 +559,11 @@ On a new server, start at [Setting it up from scratch](#setting-it-up-from-scrat
   visitor address when signed out (`RATE_LIMITS` in
   [config/settings.py](../config/settings.py)). The limits sit far above what a class of
   fifty does, including all of them signing in from one campus address in the same
-  minute; they exist to stop a loop, not to manage load. The visitor's address is the
-  `CF-Connecting-IP` header, which Cloudflare sets and the proxies pass on.
+  minute; they exist to stop a loop, not to manage load. The visitor's address is
+  Cloudflare's `CF-Connecting-IP`, which the Pages proxy passes on as `X-Visitor-IP`. It
+  has to: if the server is itself behind Cloudflare (a Tunnel), `CF-Connecting-IP` arrives
+  there as one placeholder for everyone, and every signed-out visitor would share one
+  limit.
 - Not done yet: off-server backups.
 
 ## Accounts
@@ -659,5 +663,6 @@ ssh <server> dsai-vault/bin/deploy restart
 
 Add it to Cloudflare and attach it to the Pages project as a custom domain: the proxy
 keeps working unchanged. Then set `PUBLIC_HOST` in the server's `.env` to the new name and
-run `deploy restart`. With a domain, a Cloudflare Tunnel could also replace the Pages
-proxy and the open port entirely; that is a tidier design, not a necessary one.
+run `deploy restart`. With a domain, a Cloudflare Tunnel could also replace the open port
+entirely; that is a tidier design, not a necessary one. The Pages proxy already sends the
+visitor's address as `X-Visitor-IP`, which is what the rate limits need behind a Tunnel.
