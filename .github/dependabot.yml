@@ -1,0 +1,28 @@
+# Dependabot opens a pull request when something the site depends on has a new version,
+# and straight away when one has a published vulnerability. CI tests each like any other
+# pull request; nothing is merged or deployed by itself.
+version: 2
+updates:
+  # pyproject.toml and uv.lock. Minor and patch releases come as one weekly pull request.
+  - package-ecosystem: uv
+    directory: /
+    schedule:
+      interval: weekly
+    groups:
+      python:
+        update-types: [minor, patch]
+
+  # The Python base image in the Dockerfile.
+  - package-ecosystem: docker
+    directory: /
+    schedule:
+      interval: weekly
+
+  # The actions .github/workflows/ci.yml uses.
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    groups:
+      actions:
+        patterns: ["*"]
