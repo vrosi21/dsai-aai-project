@@ -82,7 +82,7 @@
       {% include "components/timer.html" %}
       {% block ring %}{% endblock %}
       {# Shows the theme you would switch to: a sun while it is dark, a moon while it is light. #}
-      <button class="icon-btn" type="button" @click="toggleTheme()" :aria-label="theme === 'dark' ? 'Switch to light theme' : 'Switch to dark theme'" :title="theme === 'dark' ? 'Switch to light theme' : 'Switch to dark theme'">
+      <button class="icon-btn topbar__theme" type="button" @click="toggleTheme()" :aria-label="theme === 'dark' ? 'Switch to light theme' : 'Switch to dark theme'" :title="theme === 'dark' ? 'Switch to light theme' : 'Switch to dark theme'">
         <span x-show="theme === 'dark'">{% icon "light" %}</span>
         <span x-show="theme === 'light'" x-cloak>{% icon "dark" %}</span>
       </button>

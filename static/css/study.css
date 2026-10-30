@@ -1445,11 +1445,13 @@
       margin-top: var(--s3);
       padding-left: 1.3em;
       display: grid;
+      grid-template-columns: minmax(0, 1fr);
       gap: var(--s2);
     }
   }
   .doc__foot {
     display: grid;
+    grid-template-columns: minmax(0, 1fr);
     gap: var(--s5);
     max-width: var(--read);
     margin-top: var(--s7);
@@ -1952,12 +1954,14 @@
   /* ========================================================= questions, papers ===== */
   .questions {
     display: grid;
+    grid-template-columns: minmax(0, 1fr);
     gap: var(--s5);
     padding: 0;
     list-style: none;
   }
   .question {
     display: grid;
+    grid-template-columns: minmax(0, 1fr);
     gap: var(--s4);
     padding: var(--s5) var(--s6);
     border-radius: var(--r-xl);
@@ -1995,6 +1999,7 @@
   }
   .question__title {
     display: grid;
+    min-width: 0;
     gap: var(--s2);
     & h2 {
       font-size: var(--text-l);
@@ -2557,6 +2562,7 @@
   }
   .route {
     display: grid;
+    grid-template-columns: minmax(0, 1fr);
     gap: 0;
     padding: 0;
     list-style: none;
@@ -2603,6 +2609,7 @@
   }
   .station__body {
     display: grid;
+    grid-template-columns: minmax(0, 1fr);
     gap: var(--s2);
     padding: var(--s4) var(--s5);
     border-radius: var(--r-l);
@@ -2682,10 +2689,12 @@
   }
   .hits {
     display: grid;
+    grid-template-columns: minmax(0, 1fr);
     gap: var(--s3);
   }
   .hit {
     display: grid;
+    grid-template-columns: minmax(0, 1fr);
     gap: var(--s1);
     padding: var(--s4) var(--s5);
     border-radius: var(--r-l);

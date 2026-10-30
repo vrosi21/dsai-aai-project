@@ -55,9 +55,47 @@ export function decorate(root = document) {
   }
 }
 
+// KaTeX breaks an inline formula only after a relation or an operator at its top level.
+// One with nowhere to break, a product of matrices say, can be wider than a phone's line
+// and would push the page sideways. Such a formula gets the class math--wide, which makes
+// it a box of its own that scrolls sideways (prose.css). It is checked whenever the block
+// it stands in changes size: when the window does, when fonts arrive, and when a hidden
+// answer is shown. (A ResizeObserver sees an inline element as 0 by 0, so it watches the
+// block, not the formula.)
+const BLOCK = "p, li, td, th, dd, summary, h1, h2, h3, h4, div";
+const fits = new ResizeObserver((entries) => {
+  for (const entry of entries) {
+    for (const node of entry.target.querySelectorAll(".math.inline[data-done]")) fit(node);
+  }
+});
+
+// KaTeX's fonts can arrive after the first look and widen a formula without changing the
+// size of its block, so look once more when they have.
+document.fonts?.ready.then(() => {
+  for (const node of document.querySelectorAll(".math.inline[data-done]")) fit(node);
+});
+
+function fit(node) {
+  if (node.classList.contains("math--wide")) {
+    if (node.scrollWidth <= node.clientWidth + 1) node.classList.remove("math--wide");
+    return;
+  }
+  const block = node.closest(BLOCK);
+  if (!block) return;
+  const edge = block.getBoundingClientRect().right - parseFloat(getComputedStyle(block).paddingRight);
+  if (node.getBoundingClientRect().right > edge + 1) node.classList.add("math--wide");
+}
+
 export function enhance(root = document) {
   typeset(root);
   decorate(root);
+  for (const node of root.querySelectorAll(".math.inline[data-done]")) {
+    const block = node.closest(BLOCK);
+    if (block && !block.dataset.fit) {
+      block.dataset.fit = "1";
+      fits.observe(block);
+    }
+  }
 }
 
 /** x-math="expression": like x-html, then typesets what it inserted. */

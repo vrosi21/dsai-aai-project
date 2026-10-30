@@ -449,10 +449,27 @@
       display: inline-grid;
     }
   }
-  /* On a phone the top bar keeps the menu, the page name, the timer and the ring.
-     Search stays one tap away in the menu. */
+  /* On a phone the top bar keeps the menu, the page name, the timer, the ring, the bell
+     and the account, and the page name gets what is left. Search stays one tap away in
+     the menu, the theme in Settings, and the ring's number in its tooltip and on the
+     flashcards page. */
   @media (max-width: 40rem) {
-    .topbar .search {
+    .topbar .search,
+    .topbar__theme,
+    .ring-btn__pct {
+      display: none;
+    }
+    .topbar .timer-chip {
+      padding-right: var(--s2);
+      gap: 0;
+    }
+    .topbar .ring-btn {
+      padding: 0 var(--s1);
+    }
+  }
+  /* The narrowest phones: the ring goes too, so the page name stays readable. */
+  @media (max-width: 22rem) {
+    .topbar .ring-btn {
       display: none;
     }
   }

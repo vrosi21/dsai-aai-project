@@ -292,6 +292,13 @@ A pastel take on Material 3.
   the tokens.
 - Icons are Material Symbols in one sprite; add a name to `ICONS` in
   `tools/vendor_assets.py` and re-run it.
+- **Nothing widens a phone's page.** A one-column grid that holds course content says
+  `grid-template-columns: minmax(0, 1fr)`: the implicit `auto` column is at least as wide
+  as its widest content. What can be wider than a phone scrolls in a box of its own: a
+  display formula, a code block, a table (the renderer wraps it in a `.table-box`), and
+  an inline formula with nowhere to break (`math.js` marks it `math--wide`). A chip in a
+  `.chips` row wraps inside; inline code breaks anywhere. On a phone the top bar drops
+  search, the theme switch and the ring's number (base.css).
 
 ## Accounts and progress
 

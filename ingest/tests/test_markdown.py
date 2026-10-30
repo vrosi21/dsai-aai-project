@@ -87,7 +87,8 @@ class MarkdownTests(SimpleTestCase):
 
     def test_tables_and_task_lists(self):
         html = self.html("| a | b |\n|---|---|\n| 1 | 2 |\n\n- [x] done\n- [ ] open")
-        self.assertIn("<table>", html)
+        self.assertIn('<div class="table-box"><table>', html)
+        self.assertIn("</table>\n</div>", html)
         self.assertIn('type="checkbox"', html)
 
     def test_headings_get_ids_and_a_table_of_contents(self):

@@ -86,6 +86,15 @@ def _render_math(_self, tokens, idx, _options, _env):
     return f'<div class="math block">{tex}</div>\n'
 
 
+def _render_table(self, tokens, idx, options, env):
+    # A box of its own around every table: wider than the page, a table scrolls sideways
+    # inside it (prose.css) instead of squeezing its columns or widening the page.
+    tag = self.renderToken(tokens, idx, options, env)
+    if tokens[idx].nesting == 1:
+        return '<div class="table-box">' + tag
+    return tag + "</div>\n"
+
+
 def _render_callout(_self, tokens, idx, _options, _env):
     token = tokens[idx]
     kind = token.type.removeprefix("container_").rsplit("_", 1)[0]
@@ -172,6 +181,8 @@ def _build(*, cloze=False):
         md.use(container_plugin, name=name, render=_render_callout)
     for rule in MATH_TOKENS:
         md.add_render_rule(rule, _render_math)
+    md.add_render_rule("table_open", _render_table)
+    md.add_render_rule("table_close", _render_table)
     if cloze:
         md.use(cloze_plugin)
     return md

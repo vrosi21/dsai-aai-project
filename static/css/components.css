@@ -28,6 +28,11 @@
   /* ---- page header ----------------------------------------------------------------- */
   .page-head {
     display: grid;
+    /* minmax(0, 1fr), not the implicit auto column: a column of a grid is otherwise at
+       least as wide as its widest content (a long word, a table), and on a phone that
+       would widen the whole page. The same goes for every one-column grid below that
+       holds course content. */
+    grid-template-columns: minmax(0, 1fr);
     gap: var(--s2);
     margin-bottom: var(--s6);
     & .lead {
@@ -189,6 +194,14 @@
     display: flex;
     flex-wrap: wrap;
     gap: var(--s2);
+    /* A row of chips wraps between chips first. A chip longer than the row itself, a
+       source file's name or a long title, wraps inside instead of widening the page. */
+    & > .chip {
+      max-width: 100%;
+      padding-block: 0.3rem;
+      white-space: normal;
+      overflow-wrap: anywhere;
+    }
   }
   .chip {
     display: inline-flex;

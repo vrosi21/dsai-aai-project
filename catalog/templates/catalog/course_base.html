@@ -31,7 +31,7 @@
     <circle class="shaky" cx="18" cy="18" r="15" :stroke-dasharray="arc('shaky')" :stroke-dashoffset="offset('shaky')"></circle>
     <circle class="missed" cx="18" cy="18" r="15" :stroke-dasharray="arc('missed')" :stroke-dashoffset="offset('missed')"></circle>
   </svg>
-  <span x-text="percent + '%'">0%</span>
+  <span class="ring-btn__pct" x-text="percent + '%'">0%</span>
 </a>
 {% endif %}
 {% endblock %}
