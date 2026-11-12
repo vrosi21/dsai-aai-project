@@ -12,7 +12,7 @@ here and never set as attributes.
 from django.db import transaction
 from django.utils import timezone
 
-from catalog import models
+from catalog import models, visibility
 
 
 def _upsert(model, scope, key_fields, rows):
@@ -129,6 +129,10 @@ def write(plan, content_hash):
         for obj in group:
             if obj.pk is not None:
                 obj.delete()
+
+    # Public, unlisted or private: from the folder each item came from and the owner's
+    # switches. In the same transaction, so nothing private is ever shown for a moment.
+    visibility.apply(course)
 
     course.content_hash = content_hash
     course.synced_at = timezone.now()

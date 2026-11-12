@@ -9,7 +9,9 @@
 {% endblock %}
 {% block inner_class %}page__inner--narrow{% endblock %}
 
-{% block editing %}{% if assessment %}<a class="btn btn--small btn--tonal" href="{% url 'editor:papers_one' course.slug assessment.slug question_set.paper_slug %}">Edit this paper</a>{% else %}<a class="btn btn--small btn--tonal" href="{% url 'editor:problems_one' course.slug question_set.slug %}">Edit this problem set</a>{% endif %}{% endblock %}
+{% block editing %}{% if not question_set.from_private %}{% if assessment %}<a class="btn btn--small btn--tonal" href="{% url 'editor:papers_one' course.slug assessment.slug question_set.paper_slug %}">Edit this paper</a>{% else %}<a class="btn btn--small btn--tonal" href="{% url 'editor:problems_one' course.slug question_set.slug %}">Edit this problem set</a>{% endif %}{% endif %}{% endblock %}
+{# A paper is what its exam is: its switch is the exam's. #}
+{% block shown %}{% if assessment %}{% include "catalog/_shown.html" with item=assessment %}{% else %}{% include "catalog/_shown.html" with item=question_set %}{% endif %}{% endblock %}
 
 {% block content %}
 {% comment %} One template for practice sets, past papers and mock exams. The questions are printed

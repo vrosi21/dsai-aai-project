@@ -7,8 +7,10 @@ from .common import load_course, scope_topics
 
 def cards(request, course):
     course, context = load_course(request, course, "cards")
-    context["decks"] = course.decks.annotate(n_cards=Count("cards")).select_related(
-        "topic", "lecture"
+    context["decks"] = (
+        course.decks.listed_for(request.user)
+        .annotate(n_cards=Count("cards"))
+        .select_related("topic", "lecture")
     )
     return render(request, "catalog/cards.html", context)
 
@@ -29,7 +31,9 @@ def _player(request, course, title, queryset, **extra):
 
 def deck(request, course, slug):
     course, context = load_course(request, course, "cards")
-    deck = get_object_or_404(course.decks.select_related("topic", "lecture"), slug=slug)
+    deck = get_object_or_404(
+        course.decks.visible_to(request.user).select_related("topic", "lecture"), slug=slug
+    )
     context.update(
         deck=deck,
         heading=deck.title,
@@ -41,7 +45,8 @@ def deck(request, course, slug):
 def review(request, course):
     """The player over every card of the course, optionally narrowed to an exam or topic."""
     course, context = load_course(request, course, "cards")
-    queryset = course.cards.all()
+    # Only what is listed: an unlisted deck is studied from its own page, not here.
+    queryset = course.cards.listed_for(request.user)
     topics, label = scope_topics(request, course)
     heading = "All cards"
     if topics is not None:
@@ -58,7 +63,8 @@ def review(request, course):
 def problems(request, course):
     course, context = load_course(request, course, "problems")
     context["problem_sets"] = (
-        course.questionsets.filter(kind=QuestionSet.Kind.PRACTICE)
+        course.questionsets.listed_for(request.user)
+        .filter(kind=QuestionSet.Kind.PRACTICE)
         .annotate(n_questions=Count("questions"))
         .select_related("topic")
     )
@@ -89,7 +95,9 @@ def paper_context(course, question_set, mode):
 def problem_set(request, course, slug):
     course, context = load_course(request, course, "problems")
     question_set = get_object_or_404(
-        course.questionsets.select_related("topic"), slug=slug, kind=QuestionSet.Kind.PRACTICE
+        course.questionsets.visible_to(request.user).select_related("topic"),
+        slug=slug,
+        kind=QuestionSet.Kind.PRACTICE,
     )
     context.update(paper_context(course, question_set, "study"), assessment=None)
     return render(request, "catalog/question_set.html", context)

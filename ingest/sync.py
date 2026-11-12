@@ -7,6 +7,7 @@ touched in the last step, and only if the report has no errors — so a half-val
 replaces a working one.
 """
 
+import hashlib
 from pathlib import Path
 
 from django.conf import settings
@@ -14,7 +15,7 @@ from django.utils import timezone
 
 from catalog.models import Course
 
-from . import duties, live, mathcheck, store
+from . import duties, live, mathcheck, private, store
 from .assets import Assets
 from .build import Builder
 from .discover import clashes, content_hash, discover
@@ -31,7 +32,11 @@ def sync_course(course_dir, *, check_only=False, force=False):
     # The owner's own list of dated duties, beside course.yaml (ingest/duties.py). The site
     # shows it nowhere; it is checked here like any file of the course.
     dated = duties.read(course_dir, report)
+    # The owner's private material (ingest/private.py) counts as content too.
     digest = content_hash(course_dir)
+    owner = private.owner_folder(course_dir)
+    if owner is not None:
+        digest = hashlib.sha256((digest + private.digest(owner)).encode()).hexdigest()
     if not check_only and not force and report.ok:
         # A file can be saved again without changing (an edit undone, a restored copy). The
         # bytes still match, so there is nothing to import, but record that they were
@@ -41,7 +46,7 @@ def sync_course(course_dir, *, check_only=False, force=False):
             report.status = "unchanged"
             return report
 
-    files = discover(course_dir, report)
+    files = private.add(discover(course_dir, report), report)
     bundle = load_bundle(files, report)
     if bundle is None:
         report.status = "failed"
@@ -60,6 +65,9 @@ def sync_course(course_dir, *, check_only=False, force=False):
             raise
         report.status = "failed"
         return report
+
+    if report.ok and files.private:
+        private.check_shared(course_dir, report)
 
     note = mathcheck.check(renderer.math, report)
     if note:

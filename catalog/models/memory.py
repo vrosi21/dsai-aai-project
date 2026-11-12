@@ -2,6 +2,7 @@ from django.db import models
 from django.urls import reverse
 
 from .base import KeyedItem, SluggedItem
+from .visibility import HookQuerySet, LocusQuerySet, Shown
 
 
 class Hook(KeyedItem):
@@ -29,6 +30,8 @@ class Hook(KeyedItem):
     refs = models.JSONField(default=list, blank=True)  # [{label, url}]
     search_text = models.TextField(blank=True)
 
+    objects = HookQuerySet.as_manager()  # one written on a card is seen where the card is
+
     def __str__(self):
         return self.target
 
@@ -36,7 +39,7 @@ class Hook(KeyedItem):
         return f"{reverse('catalog:memory', args=[self.course.slug])}#{self.key}"
 
 
-class Palace(SluggedItem):
+class Palace(SluggedItem, Shown):
     """A memory palace: a route through a familiar place, one vivid image per stop."""
 
     title = models.CharField(max_length=200)
@@ -61,6 +64,8 @@ class Locus(models.Model):
     image_html = models.TextField()
     meaning_html = models.TextField()
     refs = models.JSONField(default=list, blank=True)
+
+    objects = LocusQuerySet.as_manager()  # visible like its palace
 
     class Meta:
         ordering = ["order", "id"]

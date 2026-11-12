@@ -350,8 +350,19 @@ class Builder:
         self._assessments(plan)
         self._reference(plan)
         self._memory(plan)
-        plan.course["has_content"] = any(plan.counts().values())
+        # Whether there is anything for students: the owner's private material is not.
+        shared = [
+            row
+            for rows in (plan.documents, plan.decks, plan.sets, plan.assessments, plan.palaces)
+            for row in rows
+            if not row.get("from_private")
+        ]
+        plan.course["has_content"] = bool(shared or plan.formulas or plan.terms or plan.hooks)
         return plan
+
+    def _private(self, parsed):
+        """Whether the file is the owner's private material (ingest/private.py)."""
+        return parsed.path in getattr(self.files, "private", ())
 
     def _sources(self, doc):
         out = []
@@ -394,6 +405,7 @@ class Builder:
         return {
             "kind": kind,
             "slug": doc.slug,
+            "from_private": self._private(doc),
             "number": _number(doc) if kind != "sheet" else None,
             "title": spec.title,
             "summary": spec.summary.strip(),
@@ -428,6 +440,7 @@ class Builder:
             plan.decks.append(
                 {
                     "slug": slug,
+                    "from_private": self._private(deck),
                     "title": spec.title,
                     "description": spec.description.strip(),
                     "order": order,
@@ -544,6 +557,7 @@ class Builder:
             plan.sets.append(
                 {
                     "slug": slug,
+                    "from_private": self._private(parsed),
                     "kind": "practice",
                     "title": spec.title,
                     "ref_assessment": None,
@@ -567,6 +581,7 @@ class Builder:
             plan.sets.append(
                 {
                     "slug": slug,
+                    "from_private": self._private(self.bundle.assessments[exam]),
                     "kind": spec.kind,
                     "title": spec.title,
                     "ref_assessment": exam,
@@ -637,6 +652,7 @@ class Builder:
             plan.assessments.append(
                 {
                     "slug": slug,
+                    "from_private": self._private(parsed),
                     "kind": spec.kind,
                     "title": spec.title,
                     "date": spec.date,
@@ -723,6 +739,7 @@ class Builder:
             plan.palaces.append(
                 {
                     "slug": slug,
+                    "from_private": self._private(palace),
                     "title": spec.title,
                     "encodes_html": self.md(palace, ("encodes",), spec.encodes).html,
                     "intro_html": self.md(palace, ("intro",), spec.intro).html,

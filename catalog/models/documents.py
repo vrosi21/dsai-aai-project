@@ -2,9 +2,10 @@ from django.db import models
 from django.urls import reverse
 
 from .base import CourseItem
+from .visibility import Shown
 
 
-class Document(CourseItem):
+class Document(CourseItem, Shown):
     """A page of prose written in Markdown: lecture notes, a lab, a homework, a guide."""
 
     class Kind(models.TextChoices):

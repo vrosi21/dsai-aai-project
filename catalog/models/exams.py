@@ -2,9 +2,10 @@ from django.db import models
 from django.urls import reverse
 
 from .base import KeyedItem, SluggedItem
+from .visibility import QuestionQuerySet, Shown
 
 
-class Assessment(SluggedItem):
+class Assessment(SluggedItem, Shown):
     """One exam you prepare for. Its scope (topics) decides which cards, problems, formulas
     and hooks show up on its page; only the plan, format and predictions are written by hand."""
 
@@ -44,7 +45,7 @@ class Assessment(SluggedItem):
         return reverse("catalog:assessment", args=[self.course.slug, self.slug])
 
 
-class QuestionSet(SluggedItem):
+class QuestionSet(SluggedItem, Shown):
     """An ordered list of questions: a practice set, a past paper or a mock exam."""
 
     class Kind(models.TextChoices):
@@ -91,6 +92,8 @@ class Question(KeyedItem):
     )
     kind = models.CharField(max_length=10, choices=Kind, default=Kind.OPEN)
     number = models.CharField(max_length=10)
+
+    objects = QuestionQuerySet.as_manager()  # visible like its set
     title = models.CharField(max_length=200, blank=True)
     points = models.FloatField(null=True, blank=True)
     topic = models.ForeignKey(

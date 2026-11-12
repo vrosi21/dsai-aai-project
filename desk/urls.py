@@ -22,4 +22,6 @@ urlpatterns = [
     path("notifications/", views.notifications, name="notifications"),
     path("notifications/read/", views.notifications_read, name="notifications_read"),
     path("educators/requests/<int:pk>/done/", views.resolve, name="resolve"),
+    # The owner's switch on an item's page: public, unlisted or private.
+    path("courses/<slug:course>/visibility/", views.visibility, name="visibility"),
 ]

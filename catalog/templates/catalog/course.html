@@ -110,7 +110,7 @@
       {% for doc in section.documents %}
       <a class="list-item" href="{{ doc.get_absolute_url }}">
         <span class="list-item__lead" x-data="readMark('{{ doc.progress_key }}')" :data-state="state">{% if doc.number is not None %}{{ doc.number }}{% else %}{% icon section.kind %}{% endif %}</span>
-        <span class="list-item__body"><strong>{{ doc.title }}</strong>{% if doc.summary %}<span>{{ doc.summary }}</span>{% endif %}</span>
+        <span class="list-item__body"><strong>{{ doc.title }}{% include "catalog/_shown_mark.html" with item=doc %}</strong>{% if doc.summary %}<span>{{ doc.summary }}</span>{% endif %}</span>
         <span class="list-item__meta">{% if doc.due %}due {{ doc.due|date:"j M" }}{% elif doc.date %}{{ doc.date|date:"j M" }}{% endif %}</span>
       </a>
       {% endfor %}
@@ -129,7 +129,7 @@
       <a class="list-item" href="{{ deck.get_absolute_url }}" x-data="deckBar('{{ deck.slug }}')">
         <span class="list-item__lead">{% icon "cards" %}</span>
         <span class="list-item__body">
-          <strong>{{ deck.title }}</strong>
+          <strong>{{ deck.title }}{% include "catalog/_shown_mark.html" with item=deck %}</strong>
           <span class="bar bar--thin"><i class="solid" :style="`width:${pct('solid')}%`"></i><i class="shaky" :style="`width:${pct('shaky')}%`"></i><i class="missed" :style="`width:${pct('missed')}%`"></i></span>
         </span>
         <span class="list-item__meta"><span class="chip chip--primary" x-show="stats.due" x-cloak x-text="stats.due + ' due'"></span>{{ deck.n_cards }} card{{ deck.n_cards|pluralize }}</span>
@@ -149,7 +149,7 @@
       {% for set in problem_sets %}
       <a class="list-item" href="{{ set.get_absolute_url }}">
         <span class="list-item__lead">{% icon "problems" %}</span>
-        <span class="list-item__body"><strong>{{ set.title }}</strong></span>
+        <span class="list-item__body"><strong>{{ set.title }}{% include "catalog/_shown_mark.html" with item=set %}</strong></span>
         <span class="list-item__meta" x-data="setDone('{{ set.slug }}')"><span x-text="done">0</span> / {{ set.n_questions }} worked</span>
       </a>
       {% endfor %}
@@ -167,7 +167,7 @@
       {% for exam in assessments %}
       <a class="list-item" href="{{ exam.get_absolute_url }}">
         <span class="list-item__lead">{% icon "exam" %}</span>
-        <span class="list-item__body"><strong>{{ exam.title }}</strong><span>{{ exam.get_kind_display }}{% if exam.n_papers %} · {{ exam.n_papers }} paper{{ exam.n_papers|pluralize }}{% endif %}</span></span>
+        <span class="list-item__body"><strong>{{ exam.title }}{% include "catalog/_shown_mark.html" with item=exam %}</strong><span>{{ exam.get_kind_display }}{% if exam.n_papers %} · {{ exam.n_papers }} paper{{ exam.n_papers|pluralize }}{% endif %}</span></span>
         <span class="list-item__meta">{% if exam.date %}<span class="chip chip--tonal" x-data="countdown('{{ exam.date|date:'Y-m-d' }}')" x-text="label">{{ exam.date|date:"j M Y" }}</span>{% endif %}</span>
       </a>
       {% endfor %}

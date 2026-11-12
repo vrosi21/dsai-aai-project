@@ -51,8 +51,8 @@ def choose(request):
         ticked = picked or _studied(request.user)
 
     for course in courses:
-        course.counts = course_data(course)["counts"]
-        course.ready = has_content(course)
+        course.counts = course_data(course, request.user)["counts"]
+        course.ready = has_content(course, request.user)
     groups, folded = dashboard_groups(courses)
     if folded:
         groups.append({"title": "Archived", "note": "", "courses": folded})

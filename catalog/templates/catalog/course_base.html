@@ -49,6 +49,7 @@
     <a class="btn btn--small" href="{% url 'editor:overview' course.slug %}">All of the course</a>
   </div>
   {% endif %}
+  {% block shown %}{% endblock %}
   <form method="post" action="{% url 'editor:switch' course.slug %}">
     {% csrf_token %}
     <input type="hidden" name="next" value="{{ request.get_full_path }}">

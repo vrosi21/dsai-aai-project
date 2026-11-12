@@ -7,6 +7,7 @@ from .exams import Assessment, Question, QuestionSet
 from .memory import Hook, Locus, Palace
 from .practice import Card, Deck
 from .reference import Formula, FormulaSection, Term
+from .visibility import Visibility
 
 __all__ = [
     "Assessment",
@@ -23,4 +24,5 @@ __all__ = [
     "QuestionSet",
     "Term",
     "Topic",
+    "Visibility",
 ]

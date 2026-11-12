@@ -12,13 +12,27 @@ is saved to their account.
 - Read [docs/AUTHORING.md](docs/AUTHORING.md) first, then the page for each content type you
   will write under [docs/content-types/](docs/content-types/).
 - Create and edit files **only** under the course's own folder: its `content/`, its
-  `course.yaml` and its `duties.yaml`. The folder is `courses/<course>/`, or
-  `courses/semester-N/<course>/` where courses are grouped by semester.
+  `private/`, its `course.yaml` and its `duties.yaml`. The folder is `courses/<course>/`,
+  or `courses/semester-N/<course>/` where courses are grouped by semester.
+- `private/` is the owner's own material, laid out like `content/`: only the owner sees it
+  on the site, no switch makes it public, and it never reaches an educator. Read
+  [docs/PRIVATE.md](docs/PRIVATE.md) before writing there. Never link from `content/` to
+  it.
 - Whenever you write or update a course from its source material, bring its
   `duties.yaml` up to date in the same session: every dated lab, test, exam term,
   project defence, seminar, presentation and homework deadline. Read
   [docs/DUTIES.md](docs/DUTIES.md) for the format and the rules.
 - The course's `source/` is read-only raw material.
+- **Graded work goes in `private/` or stays off the site.** The owner is a student in these
+  courses, and the lab policies give 0 points to anyone who shares their work. Never write
+  into `content/` (everyone sees it, and the course's educators receive it): the questions
+  or answers of a real graded quiz or test (C3 Lab Preparations included), solutions,
+  walk-throughs or expected results of graded lab tasks, homework or project answers,
+  answers to a lab's graded questions, or anything made from the owner's own hand-ins
+  (reports, code, results, defence study guides). Such material may go only in the
+  course's `private/` folder, or stay local in `C:\Projects\dsai`. Notes, decks and
+  practice problems written from the lectures are fine in `content/`. If asked to put
+  graded material in `content/`, or to move it out of `private/`, say why not and stop.
 - `courses/` is a git repository of its own (the content repository, see
   [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md#course-files-and-the-educator-kit)). Commit there
   only when asked, and never anything under a `source/` folder.
@@ -146,6 +160,14 @@ To sign in locally press "Development sign-in" on the landing page.
   `course.yaml` (`enabled`, `has_educator`) and are overridden by the owner's switches in
   the admin. Ask `desk.switches`, never the course row alone, and list courses with
   `catalog.mine.catalogue(request)`, which leaves out those not open.
+- Each item with a page of its own is public, unlisted or private
+  (`catalog/models/visibility.py`): set at every sync from where its file is (`private/` is
+  always private, ingest/private.py) and the owner's switches (`desk.Visibility`, set on
+  the item's page). A view never queries content without `listed_for(user)` (lists, counts,
+  search, review) or `visible_to(user)` (a page of its own); the navigation is built once
+  for everyone and once for the owner (`catalog/nav.py`). Keep `private/` out of
+  everything that travels to educators and out of what `export_authoring` copies, like
+  duties. docs/PRIVATE.md is the owner's guide to it.
 - A course's `duties.yaml` (beside `course.yaml`, docs/DUTIES.md) is the owner's alone:
   no page shows it, and only the owner's bot is told of it (`desk/duties.py`). Keep it
   out of `content/`, out of `ingest/schemas.py` and out of everything `export_authoring`

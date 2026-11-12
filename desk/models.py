@@ -395,3 +395,32 @@ class ToldDuty(models.Model):
 
     def __str__(self):
         return self.key
+
+
+class Visibility(models.Model):
+    """The owner's switch for one item of a course: unlisted or private instead of public.
+
+    An item is named as content names it in a link, `lecture:03-the-integral`,
+    `deck:measure`, `problems:practice`, `exam:final` or `palace:kitchen`, in one year of
+    a course (its folder's name, not the series: each year is written on its own). No row
+    means public. What is written in the course's private/ folder is private whatever is
+    here (catalog/visibility.py). Only the owner changes these, on the item's page."""
+
+    class State(models.TextChoices):
+        PUBLIC = "public", "Public"
+        UNLISTED = "unlisted", "Unlisted"
+        PRIVATE = "private", "Private"
+
+    course = models.SlugField(max_length=64)
+    ref = models.CharField(max_length=120)
+    state = models.CharField(max_length=10, choices=State)
+    changed_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["course", "ref"]
+        constraints = [
+            models.UniqueConstraint(fields=["course", "ref"], name="desk_visibility_course_ref")
+        ]
+
+    def __str__(self):
+        return f"{self.course}/{self.ref}: {self.state}"

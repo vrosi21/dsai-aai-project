@@ -5,10 +5,11 @@
 
 Nobody writes to the live database directly, not even this command. It sends *files*: every
 course's `course.yaml`, `content/` folder and `duties.yaml` (the owner's own, which the
-server tells only the owner's bot of, desk/duties.py), packed into one archive and piped
-over SSH to the server's deploy script. The server validates them again with the same code, replaces
-its copy, and runs `sync_content` there. Raw material under `source/` never leaves this
-computer.
+server tells only the owner's bot of, desk/duties.py), and its `private/` folder (the
+owner's own material, which only the owner sees, ingest/private.py), packed into one
+archive and piped over SSH to the server's deploy script. The server validates them again
+with the same code, replaces its copy, and runs `sync_content` there. Raw material under
+`source/` never leaves this computer.
 
 The server is named by `--to user@host` or the DSAI_PUBLISH_SSH environment variable
 (keep it in the git-ignored `.env` and run with `uv run --env-file .env ...`).
@@ -22,7 +23,7 @@ import tarfile
 from django.conf import settings
 from django.core.management.base import BaseCommand, CommandError
 
-from ingest import duties
+from ingest import duties, private
 from ingest.discover import clashes, find_courses
 from ingest.management.commands.sync_content import safe_streams
 from ingest.sync import sync_course
@@ -49,6 +50,7 @@ def pack(courses):
             # include. The server lets go of its own copy of that hand-in when it sees it.
             paths += [p for p in [folder / MERGED] if p.is_file()]
             paths += [p for p in [folder / duties.FILE] if p.is_file()]
+            paths += private.files_in(folder if (folder / private.FOLDER).is_dir() else None)
             for path in paths:
                 info = archive.gettarinfo(path, f"{slug}/{path.relative_to(folder).as_posix()}")
                 # Whoever unpacks it owns the files; nothing about this computer is kept.

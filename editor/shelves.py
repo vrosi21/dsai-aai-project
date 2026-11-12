@@ -35,14 +35,17 @@ ACTIVE = {"papers": "exams", "hooks": "memory"}
 def _course_refs(course):
     """What a form may point to in this course, read from the database: the course on
     the site passed validation, so its rows are its files."""
+    # Never the owner's private material: no file of the course may point there.
     lectures = list(
-        course.documents.filter(kind=Document.Kind.LECTURE).values_list("slug", "number", "title")
+        course.documents.filter(kind=Document.Kind.LECTURE, from_private=False).values_list(
+            "slug", "number", "title"
+        )
     )
     return schema.Course(
         topics=list(course.topics.values_list("key", "title")),
         lectures=[(slug, title) for slug, _number, title in lectures],
         numbers=[(n, f"{n} · {title}") for _slug, n, title in lectures if n is not None],
-        exams=list(course.assessments.values_list("slug", "title")),
+        exams=list(course.assessments.filter(from_private=False).values_list("slug", "title")),
     )
 
 

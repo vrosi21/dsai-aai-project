@@ -20,7 +20,7 @@ def site(request):
         # something in it to open.
         active = Course.Status.ACTIVE
         latest = mine(request, catalogue(request))
-        return [c for c in latest if c.status == active and has_content(c)]
+        return [c for c in latest if c.status == active and has_content(c, request.user)]
 
     return {
         "nav_courses": SimpleLazyObject(current),

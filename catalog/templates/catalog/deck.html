@@ -4,7 +4,8 @@
 {% block title %}{{ heading }} · {{ course.title }}{% endblock %}
 {% block crumbs %}<a href="{% url 'catalog:home' %}">Courses</a>{% icon "next" %}<a href="{{ course.get_absolute_url }}">{{ course.title }}</a>{% icon "next" %}<a href="{% url 'catalog:cards' course.slug %}">Flashcards</a>{% icon "next" %}<span>{{ heading }}</span>{% endblock %}
 
-{% block editing %}{% if deck %}<a class="btn btn--small btn--tonal" href="{% url 'editor:cards_one' course.slug deck.slug %}">Edit this deck</a>{% endif %}{% endblock %}
+{% block editing %}{% if deck and not deck.from_private %}<a class="btn btn--small btn--tonal" href="{% url 'editor:cards_one' course.slug deck.slug %}">Edit this deck</a>{% endif %}{% endblock %}
+{% block shown %}{% if deck %}{% include "catalog/_shown.html" with item=deck %}{% endif %}{% endblock %}
 
 {% block content %}
 {# The cards arrive as JSON (bottom of the page); static/js/components/flashcards.js runs the session. #}

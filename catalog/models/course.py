@@ -40,6 +40,10 @@ class Course(models.Model):
     has_content = models.BooleanField(default=False)
     content_hash = models.CharField(max_length=64, blank=True)
     synced_at = models.DateTimeField(null=True, blank=True)
+    # When the owner last switched what of the course is public, unlisted or private
+    # (desk.views.visibility). Part of the key the navigation is cached under
+    # (catalog/nav.py), so the change reaches every server process at once.
+    shown_at = models.DateTimeField(null=True, blank=True)
 
     class Meta:
         ordering = ["status", "-year", "order", "title"]

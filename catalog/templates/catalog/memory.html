@@ -26,7 +26,7 @@
     {% for palace in palaces %}
     <a class="card palace-card" href="{{ palace.get_absolute_url }}">
       <p class="overline">{% if palace.topic %}{{ palace.topic.label }} · {% endif %}{{ palace.n_loci }} stops</p>
-      <h3 class="card__title">{{ palace.title }}</h3>
+      <h3 class="card__title">{{ palace.title }}{% include "catalog/_shown_mark.html" with item=palace %}</h3>
       {% if palace.encodes_html %}<div class="md muted">{{ palace.encodes_html|safe }}</div>{% endif %}
     </a>
     {% endfor %}

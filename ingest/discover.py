@@ -52,10 +52,12 @@ class CourseFiles:
     cheatsheet: Path | None = None
     hooks: Path | None = None
     palaces: list[Path] = field(default_factory=list)
+    # Where the content is read from, when it is another folder than root/content.
+    content_dir: Path | None = None
 
     @property
     def content(self):
-        return self.root / "content"
+        return self.content_dir or self.root / "content"
 
     def rel(self, path):
         return Path(path).relative_to(self.root).as_posix()
@@ -128,9 +130,16 @@ def _files(directory, suffixes):
     )
 
 
-def discover(course_dir, report):
+def discover(course_dir, report, content=None):
+    """The files of the course in `course_dir`, read from its content/ folder or, when
+    given, from the folder `content` inside it."""
     course_dir = Path(course_dir)
-    files = CourseFiles(root=course_dir, slug=course_dir.name, course=course_dir / "course.yaml")
+    files = CourseFiles(
+        root=course_dir,
+        slug=course_dir.name,
+        course=course_dir / "course.yaml",
+        content_dir=course_dir / content if content else None,
+    )
     if not SLUG.match(files.slug):
         report.error(
             "course.yaml",

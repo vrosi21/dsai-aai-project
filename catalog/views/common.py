@@ -9,7 +9,8 @@ from ingest import live
 from ingest.discover import newest_mtime
 
 from .. import editions
-from ..models import Course
+from ..models import Course, Visibility
+from ..models.visibility import is_owner
 from ..nav import course_data
 
 
@@ -25,7 +26,7 @@ def load_course(request, slug, active=""):
     can_edit = may_write(request.user, course.series or course.slug)
     if not is_open and not can_edit:
         raise Http404
-    data = course_data(course)
+    data = course_data(course, request.user)
     context = {
         "course": course,
         "hue": course.hue,
@@ -39,6 +40,10 @@ def load_course(request, slug, active=""):
         # choice in the session).
         "can_edit": can_edit,
         "editing": can_edit and bool(request.session.get("editing")),
+        # The owner sees everything, marked when it is not public, and on an item's page
+        # the switch between public, unlisted and private (catalog/_shown.html).
+        "owner": is_owner(request.user),
+        "shown_choices": Visibility.choices,
         # The years this course exists in, newest first, for the switch at the top.
         # Lazy: only the course's front page shows the switch, so only it pays the query.
         "editions": SimpleLazyObject(lambda: editions.of(course)),
@@ -66,7 +71,7 @@ def scope_topics(request, course):
     Lets one page (cards, formulas, hooks…) be narrowed to what an exam covers."""
     scope, topic = request.GET.get("scope"), request.GET.get("topic")
     if scope:
-        assessment = get_object_or_404(course.assessments, slug=scope)
+        assessment = get_object_or_404(course.assessments.visible_to(request.user), slug=scope)
         return list(assessment.topics.all()), assessment.title
     if topic:
         found = get_object_or_404(course.topics, key=topic)

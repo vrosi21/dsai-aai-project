@@ -6,8 +6,9 @@ from .common import load_course, scope_topics
 
 def memory(request, course):
     course, context = load_course(request, course, "memory")
-    hooks = course.hooks.select_related("topic", "card__deck")
-    palaces = course.palaces.annotate(n_loci=Count("loci")).select_related("topic")
+    who = request.user
+    hooks = course.hooks.listed_for(who).select_related("topic", "card__deck")
+    palaces = course.palaces.listed_for(who).annotate(n_loci=Count("loci")).select_related("topic")
     topics, label = scope_topics(request, course)
     if topics is not None:
         hooks = hooks.filter(topic__in=topics)
@@ -18,7 +19,9 @@ def memory(request, course):
 
 def palace(request, course, slug):
     course, context = load_course(request, course, "memory")
-    palace = get_object_or_404(course.palaces.select_related("topic"), slug=slug)
+    palace = get_object_or_404(
+        course.palaces.visible_to(request.user).select_related("topic"), slug=slug
+    )
     loci = list(palace.loci.all())
     context.update(
         palace=palace,

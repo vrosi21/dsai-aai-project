@@ -12,9 +12,15 @@ from .common import load_course
 
 def course(request, course):
     course, context = load_course(request, course, "overview")
+    who = request.user
     documents = {kind: [] for kind in Document.SECTIONS}
     # defer(): leave the big rendered columns in the database; a list only shows titles.
-    listed = course.documents.exclude(kind=Document.Kind.SHEET).defer("body_html", "search_text")
+    # listed_for(): what this person may find in a list (catalog/models/visibility.py).
+    listed = (
+        course.documents.listed_for(who)
+        .exclude(kind=Document.Kind.SHEET)
+        .defer("body_html", "search_text")
+    )
     for document in listed:
         documents[document.kind].append(document)
     context.update(
@@ -29,13 +35,13 @@ def course(request, course):
             if documents[kind]
         ],
         # annotate() adds a computed column: here, one COUNT per deck in the same query.
-        decks=course.decks.annotate(n_cards=Count("cards")).select_related("topic"),
-        problem_sets=course.questionsets.filter(kind=QuestionSet.Kind.PRACTICE).annotate(
-            n_questions=Count("questions")
-        ),
-        assessments=course.assessments.annotate(n_papers=Count("papers")),
+        decks=course.decks.listed_for(who).annotate(n_cards=Count("cards")).select_related("topic"),
+        problem_sets=course.questionsets.listed_for(who)
+        .filter(kind=QuestionSet.Kind.PRACTICE)
+        .annotate(n_questions=Count("questions")),
+        assessments=course.assessments.listed_for(who).annotate(n_papers=Count("papers")),
         topics=course.topics.all(),
-        palaces=course.palaces.all(),
+        palaces=course.palaces.listed_for(who),
         # Whether this course is on the visitor's dashboard: decides which of the two
         # buttons (Add, Remove) the page shows. None when nobody is signed in.
         on_dashboard=None if chosen(request) is None else course.series in chosen(request),
@@ -52,21 +58,27 @@ def course(request, course):
 def topic(request, course, key):
     course, context = load_course(request, course, "overview")
     topic = get_object_or_404(course.topics, key=key)
+    who = request.user
     context.update(
         topic=topic,
         # Reached through the topic, these rows do not know their course yet; select_related
         # joins it in, so get_absolute_url() costs no extra query per row.
-        documents=topic.documents.exclude(kind=Document.Kind.SHEET).select_related("course"),
+        documents=topic.documents.listed_for(who)
+        .exclude(kind=Document.Kind.SHEET)
+        .select_related("course"),
         # A deck belongs to the topic if it is tagged with it or holds a card that is.
-        decks=course.decks.filter(Q(topic=topic) | Q(cards__topic=topic)).distinct(),
-        n_cards=topic.cards.count(),
-        problem_sets=course.questionsets.filter(kind=QuestionSet.Kind.PRACTICE)
+        decks=course.decks.listed_for(who)
+        .filter(Q(topic=topic) | Q(cards__topic=topic))
+        .distinct(),
+        n_cards=topic.cards.listed_for(who).count(),
+        problem_sets=course.questionsets.listed_for(who)
+        .filter(kind=QuestionSet.Kind.PRACTICE)
         .filter(Q(topic=topic) | Q(questions__topic=topic))
         .distinct(),
         n_formulas=course.formulas.filter(section__topic=topic).count(),
         n_terms=topic.terms.count(),
-        n_hooks=topic.hooks.count(),
-        palaces=topic.palaces.select_related("course"),
-        assessments=topic.assessments.select_related("course"),
+        n_hooks=topic.hooks.listed_for(who).count(),
+        palaces=topic.palaces.listed_for(who).select_related("course"),
+        assessments=topic.assessments.listed_for(who).select_related("course"),
     )
     return render(request, "catalog/topic.html", context)

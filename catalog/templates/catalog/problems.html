@@ -19,7 +19,7 @@
   <a class="list-item list-item--tall" href="{{ set.get_absolute_url }}">
     <span class="list-item__lead">{% icon "problems" %}</span>
     <span class="list-item__body">
-      <strong>{{ set.title }}</strong>
+      <strong>{{ set.title }}{% include "catalog/_shown_mark.html" with item=set %}</strong>
       <span class="faint">{{ set.n_questions }} question{{ set.n_questions|pluralize }}{% if set.total_points %} · {{ set.total_points|trim_zero }} points{% endif %}{% if set.topic %} · {{ set.topic.label }}{% endif %}</span>
     </span>
     <span class="list-item__meta" x-data="setDone('{{ set.slug }}')"><span x-text="done">0</span> / {{ set.n_questions }} worked</span>

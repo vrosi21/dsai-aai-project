@@ -4,7 +4,8 @@
 {% block title %}{{ exam.title }} · {{ course.title }}{% endblock %}
 {% block crumbs %}<a href="{% url 'catalog:home' %}">Courses</a>{% icon "next" %}<a href="{{ course.get_absolute_url }}">{{ course.title }}</a>{% icon "next" %}<a href="{% url 'catalog:exams' course.slug %}">Exam prep</a>{% icon "next" %}<span>{{ exam.title }}</span>{% endblock %}
 
-{% block editing %}<a class="btn btn--small btn--tonal" href="{% url 'editor:exam' course.slug exam.slug %}">Edit this exam</a>{% endblock %}
+{% block editing %}{% if not exam.from_private %}<a class="btn btn--small btn--tonal" href="{% url 'editor:exam' course.slug exam.slug %}">Edit this exam</a>{% endif %}{% endblock %}
+{% block shown %}{% include "catalog/_shown.html" with item=exam %}{% endblock %}
 
 {% block content %}
 {% url 'catalog:review' course.slug as review_url %}

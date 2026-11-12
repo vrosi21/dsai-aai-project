@@ -866,6 +866,40 @@ course page. `catalog/course_base.html` draws an Edit switch for those who may w
 course; it posts to `editor:switch`, which keeps the choice in the session. Switched on,
 a page fills the `editing` block with what it offers (`Edit this page`, `New lecture`).
 
+## Public, unlisted and private
+
+Every item with a page of its own (documents, decks, practice sets, exams with their papers,
+palaces) has a `visibility`: public, unlisted or private, and `from_private`, whether its
+file is in the course's `private/` folder ([docs/PRIVATE.md](PRIVATE.md) is the owner's
+guide). Cards, questions and the stops of a palace follow what they belong to.
+
+- **Where it comes from.** `ingest/private.py` reads `private/`, laid out like `content/`,
+  and adds it to what `discover` found (one name across both). For a course educators have
+  changed, `content/` comes from the hand-in's copy, which has no `private/`, so the
+  owner's own folder supplies it. `sync_course` fingerprints it with the content, and
+  when a course has private material it also checks `content/` alone, as an educator's
+  copy is checked: a link from shared content to private material is an error there.
+  `store.write` ends with `catalog.visibility.apply`: an item from `private/` is private,
+  any other is what the owner's switch says (`desk.Visibility`), public without one.
+- **Asking for it.** The five models share an abstract `Shown` model
+  ([catalog/models/visibility.py](../catalog/models/visibility.py)) whose manager is a custom
+  QuerySet: `listed_for(user)` (public only, for lists, counts, search and review) and
+  `visible_to(user)` (not private, for a page opened by its address). Cards, questions,
+  loci and hooks have their own QuerySets that look through to their parent. Because a
+  related manager (`course.decks`) is built from the model's default manager, every view
+  writes `course.decks.listed_for(request.user)`; the owner (staff) gets everything.
+- **The navigation** (`catalog/nav.py`) is cached twice per course, for everyone and for
+  the owner, under the content hash and `Course.shown_at`, which the switch sets: a new
+  key in the shared database reaches every server process at once.
+- **The switch** is `desk.views.visibility`, a POST from the bar at the top of an item's
+  page (`catalog/_shown.html`), for staff only (404 for anyone else). It refuses an item
+  of `private/` (409): that folder may hold graded work, and stays private.
+- **What never sees `private/`**: `ingest/handin.py` packs and accepts `course.yaml` and
+  `content/` only, so downloads, hand-ins, the editor and the history are as before; the
+  editor leaves private items out of what it lists; `export_authoring` never copies a
+  `private/` folder, and a test checks that nothing the kit copies mentions one. `publish`
+  sends it to the server.
+
 ## Tests
 
 `manage.py test` runs Django's test runner.

@@ -94,22 +94,22 @@ def home(request):
         return redirect("catalog:choose")
     courses = mine(request, everything)
     for course in courses:
-        data = course_data(course)
+        data = course_data(course, request.user)
         course.counts = data["counts"]
     groups, folded = dashboard_groups(courses)
     archived = {"courses": folded}
     # Inside each section: the courses there is something to open (they get a card),
     # and those not written up yet (they are only named, in one quiet line).
     for group in [*groups, archived]:
-        group["ready"] = [c for c in group["courses"] if has_content(c)]
-        group["waiting"] = [c for c in group["courses"] if not has_content(c)]
+        group["ready"] = [c for c in group["courses"] if has_content(c, request.user)]
+        group["waiting"] = [c for c in group["courses"] if not has_content(c, request.user)]
     return render(
         request,
         "catalog/home.html",
         {
             "groups": groups,
             "archived": archived,
-            "manifests": [course_data(c)["manifest"] for c in courses],
+            "manifests": [course_data(c, request.user)["manifest"] for c in courses],
             # How many courses exist that are not on this dashboard.
             "others": len(everything) - len(courses),
             # The tour on a first visit, or what changed since the last one.
@@ -143,7 +143,12 @@ def search(request):
             for name in fields:
                 # Q objects combine with | (OR) and & (AND) to build one WHERE clause.
                 condition |= Q(**{f"{name}__icontains": query})
-            rows = model.objects.filter(condition, **scope).exclude(course__slug__in=closed)
+            rows = model.objects.all()
+            if hasattr(rows, "listed_for"):
+                # Only what this person may find in a list: no unlisted or private items
+                # (catalog/models/visibility.py). Formulas and terms have no such thing.
+                rows = rows.listed_for(request.user)
+            rows = rows.filter(condition, **scope).exclude(course__slug__in=closed)
             return rows.select_related("course", *related)[:40]
 
         for doc in found(Document, "title", "search_text"):
@@ -194,15 +199,15 @@ def settings_page(request):
     # Every year of every course that has something in it: progress can be cleared
     # for each of them, and an empty course has none to clear.
     gate = switches(request)
-    courses = [c for c in Course.objects.all() if gate.is_open(c) and has_content(c)]
+    courses = [c for c in Course.objects.all() if gate.is_open(c) and has_content(c, request.user)]
     for course in courses:
-        course.counts = course_data(course)["counts"]
+        course.counts = course_data(course, request.user)["counts"]
     return render(
         request,
         "catalog/settings.html",
         {
             "courses": courses,
-            "manifests": [course_data(c)["manifest"] for c in courses],
+            "manifests": [course_data(c, request.user)["manifest"] for c in courses],
             # An educator finds their second tour here, beside the first.
             "educator": educator_state(request.user)["educator"],
             "active": "settings",

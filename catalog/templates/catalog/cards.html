@@ -38,7 +38,7 @@
     {% for deck in decks %}
     <a class="card deck-card" href="{{ deck.get_absolute_url }}" x-data="deckBar('{{ deck.slug }}')">
       <p class="overline">{% if deck.topic %}{{ deck.topic.label }}{% else %}Deck{% endif %}</p>
-      <h3 class="card__title">{{ deck.title }}</h3>
+      <h3 class="card__title">{{ deck.title }}{% include "catalog/_shown_mark.html" with item=deck %}</h3>
       {% if deck.description %}<p class="muted">{{ deck.description }}</p>{% endif %}
       <div class="bar" role="img" :aria-label="label">
         <i class="solid" :style="`width:${pct('solid')}%`"></i><i class="shaky" :style="`width:${pct('shaky')}%`"></i><i class="missed" :style="`width:${pct('missed')}%`"></i>

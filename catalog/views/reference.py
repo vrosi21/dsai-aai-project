@@ -26,5 +26,7 @@ def glossary(request, course):
 
 def cheatsheet(request, course):
     course, context = load_course(request, course, "cheatsheet")
-    context["doc"] = get_object_or_404(course.documents, kind=Document.Kind.SHEET)
+    context["doc"] = get_object_or_404(
+        course.documents.visible_to(request.user), kind=Document.Kind.SHEET
+    )
     return render(request, "catalog/cheatsheet.html", context)

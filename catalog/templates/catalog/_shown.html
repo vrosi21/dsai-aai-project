@@ -1,0 +1,16 @@
+{% load ui %}
+{% comment %} The owner's switch for one item: who sees it (catalog/models/visibility.py).
+   Included in the `shown` block of an item's page with item=<the row>. {% endcomment %}
+{% if owner %}
+{% if item.from_private %}
+<span class="shown shown--locked" title="Written in the course's private folder, which stays private">{% icon "hidden" %}Private · private folder</span>
+{% else %}
+<form class="shown" method="post" action="{% url 'desk:visibility' course.slug %}">
+  {% csrf_token %}
+  <input type="hidden" name="ref" value="{{ item.shown_ref }}">
+  <div class="segmented" role="group" aria-label="Who sees this">
+    {% for value, label in shown_choices %}<button type="submit" name="state" value="{{ value }}" aria-pressed="{% if item.visibility == value %}true{% else %}false{% endif %}">{{ label }}</button>{% endfor %}
+  </div>
+</form>
+{% endif %}
+{% endif %}

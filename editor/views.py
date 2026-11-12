@@ -85,7 +85,12 @@ def _page_urls(course, kind, name=None):
 def overview(request, course):
     """Everything in the course that can be edited here, and what was changed lately."""
     course, context = _open(request, course)
-    pages = list(course.documents.only("kind", "slug", "number", "title", "status", "course"))
+    # Not the owner's private material: it is not among the course's files (ingest/private.py).
+    pages = list(
+        course.documents.filter(from_private=False).only(
+            "kind", "slug", "number", "title", "status", "course"
+        )
+    )
     sections = [
         {
             "kind": kind,

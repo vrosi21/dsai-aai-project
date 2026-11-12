@@ -2,47 +2,62 @@
 
 Both depend only on the course's content, so they are built once per sync and cached under
 the course's content hash. A new sync changes the hash, which makes a new cache key — there
-is nothing to invalidate.
+is nothing to invalidate. They are built twice: once with what everyone sees (the public
+items) and once with all of it, for the owner. When the owner switches an item, the
+course's `shown_at` changes, and with it the key.
 """
 
 from django.core.cache import cache
 from django.urls import reverse
 
 from .models import Document
+from .models.visibility import is_owner
 
 
-def course_data(course):
-    key = f"catalog:course:{course.slug}:{course.content_hash}"
-    return cache.get_or_set(key, lambda: _build(course), None)
+def course_data(course, user=None):
+    """The navigation, counts and manifest of a course as `user` sees it."""
+    owner = is_owner(user)
+    shown = course.shown_at.timestamp() if course.shown_at else 0
+    key = f"catalog:course:{course.slug}:{course.content_hash}:{shown}:{int(owner)}"
+    return cache.get_or_set(key, lambda: _build(course, owner), None)
 
 
-def has_content(course):
-    """Whether anything has been written up for the course yet.
+def has_content(course, user=None):
+    """Whether anything has been written up for the course yet, that `user` may see.
 
     A course with nothing in it has no navigation at all, so that is the test. The
     dashboard and the list of courses in the rail only offer courses that pass it.
     """
-    return bool(course_data(course)["nav"])
+    return bool(course_data(course, user)["nav"])
 
 
-def _build(course):
+def _build(course, owner):
     slug = course.slug
-    docs = list(course.documents.values("kind", "slug", "number", "title", "order"))
+
+    def listed(items):
+        # The owner's navigation lists everything; everyone else's what is public.
+        return items if owner else items.listed_for(None)
+
+    docs = list(listed(course.documents).values("kind", "slug", "number", "title", "order"))
     by_kind = {}
     for doc in docs:
         by_kind.setdefault(doc["kind"], []).append(doc)
 
-    cards = list(course.cards.values("key", "kind", "high_yield", "deck__slug", "topic__key"))
-    decks = list(course.decks.values("slug", "title", "topic__key"))
+    cards = list(
+        listed(course.cards).values("key", "kind", "high_yield", "deck__slug", "topic__key")
+    )
+    decks = list(listed(course.decks).values("slug", "title", "topic__key"))
     sets = list(
-        course.questionsets.values("id", "slug", "paper_slug", "title", "kind", "assessment__slug")
+        listed(course.questionsets).values(
+            "id", "slug", "paper_slug", "title", "kind", "assessment__slug"
+        )
     )
     questions = {}
-    for row in course.questions.values("key", "question_set_id", "topic__key"):
+    for row in listed(course.questions).values("key", "question_set_id", "topic__key"):
         questions.setdefault(row["question_set_id"], []).append(row)
-    exams = list(course.assessments.values("id", "slug", "title", "kind", "date", "plan"))
+    exams = list(listed(course.assessments).values("id", "slug", "title", "kind", "date", "plan"))
     exam_topics = {}
-    for row in course.assessments.values("slug", "topics__key"):
+    for row in listed(course.assessments).values("slug", "topics__key"):
         if row["topics__key"]:
             exam_topics.setdefault(row["slug"], []).append(row["topics__key"])
 
@@ -61,8 +76,8 @@ def _build(course):
         "exams": len(exams),
         "formulas": course.formulas.count(),
         "terms": course.terms.count(),
-        "hooks": course.hooks.count(),
-        "palaces": course.palaces.count(),
+        "hooks": listed(course.hooks).count(),
+        "palaces": listed(course.palaces).count(),
     }
 
     def item(key, label, icon, url_name, count):

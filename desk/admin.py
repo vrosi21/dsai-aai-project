@@ -11,6 +11,7 @@ the Courses list (catalog/admin.py), beside the courses they are about.
 from django import forms
 from django.contrib import admin, messages
 from django.urls import reverse
+from django.utils import timezone
 from django.utils.html import format_html, format_html_join
 
 from catalog import editions
@@ -25,6 +26,7 @@ from .models import (
     HandIn,
     KitAnnouncement,
     Request,
+    Visibility,
 )
 
 
@@ -418,3 +420,36 @@ class KitAnnouncementAdmin(admin.ModelAdmin):
             f"Educators now see the notice. {obj.recipients} e-mail(s) were sent"
             + ("." if mail.configured() else ": no mail server is configured."),
         )
+
+
+@admin.register(Visibility)
+class VisibilityAdmin(admin.ModelAdmin):
+    """The owner's switches: what of a course is unlisted or private. Set on an item's page;
+    here to see them all at once, change one, or delete one (which makes it public again)."""
+
+    list_display = ["course", "ref", "state", "changed_at"]
+    list_filter = ["state", "course"]
+    search_fields = ["course", "ref"]
+    fields = ["course", "ref", "state"]
+
+    def _apply(self, slugs):
+        # The rows of the course follow at once, as after a switch on the page itself.
+        from catalog import visibility as shown
+
+        for course in Course.objects.filter(slug__in=set(slugs)):
+            shown.apply(course)
+            course.shown_at = timezone.now()
+            course.save(update_fields=["shown_at"])
+
+    def save_model(self, request, obj, form, change):
+        super().save_model(request, obj, form, change)
+        self._apply([obj.course])
+
+    def delete_model(self, request, obj):
+        super().delete_model(request, obj)
+        self._apply([obj.course])
+
+    def delete_queryset(self, request, queryset):
+        slugs = list(queryset.values_list("course", flat=True))
+        super().delete_queryset(request, queryset)
+        self._apply(slugs)

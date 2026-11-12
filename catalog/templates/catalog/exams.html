@@ -23,7 +23,7 @@
       <span class="faint">{{ exam.date|date:"j M Y" }}</span>
       {% endif %}
     </div>
-    <h2 class="card__title mt-4">{{ exam.title }}</h2>
+    <h2 class="card__title mt-4">{{ exam.title }}{% include "catalog/_shown_mark.html" with item=exam %}</h2>
     <p class="muted">
       {% for topic in exam.topics.all %}{{ topic.label }}{% if not forloop.last %} · {% endif %}{% empty %}No topics in scope yet{% endfor %}
     </p>

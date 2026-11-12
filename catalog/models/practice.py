@@ -2,9 +2,10 @@ from django.db import models
 from django.urls import reverse
 
 from .base import KeyedItem, SluggedItem
+from .visibility import CardQuerySet, Shown
 
 
-class Deck(SluggedItem):
+class Deck(SluggedItem, Shown):
     title = models.CharField(max_length=200)
     description = models.TextField(blank=True)
     topic = models.ForeignKey(
@@ -33,6 +34,8 @@ class Card(KeyedItem):
         "catalog.Topic", null=True, blank=True, on_delete=models.SET_NULL, related_name="cards"
     )
     high_yield = models.BooleanField(default=False)
+
+    objects = CardQuerySet.as_manager()  # visible like its deck
 
     # For a cloze card, front_html is the whole sentence with each blank in <span class="cloze">.
     front_html = models.TextField()

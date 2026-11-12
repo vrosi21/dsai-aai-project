@@ -13,8 +13,9 @@ from django.utils.http import urlencode
 from django.views.decorators.http import require_POST
 
 from catalog import editions
+from catalog import visibility as shown
 from catalog.mine import by_semester, catalogue
-from catalog.models import Course
+from catalog.models import Course, Visibility
 from catalog.nav import course_data, has_content
 from catalog.welcome import educator_state
 from ingest import handin, live
@@ -621,3 +622,22 @@ def notifications_read(request):
     counts as read, on every device."""
     notices.mark_read(request.user)
     return HttpResponse(status=204)
+
+
+@require_POST
+def visibility(request, course):
+    """The owner making one item of a course public, unlisted or private (its page has the
+    switch). Anyone else is told there is no such page, as for everything private."""
+    if not request.user.is_staff:
+        raise Http404
+    course = get_object_or_404(Course, slug=course)
+    item = shown.find(course, request.POST.get("ref", ""))
+    state = request.POST.get("state", "")
+    if item is None or state not in Visibility.values:
+        raise Http404
+    try:
+        shown.switch(course, item, state)
+    except shown.Locked:
+        # What is in private/ stays private: that folder may hold graded work.
+        return HttpResponse("This is in the private folder and stays private.", status=409)
+    return redirect(item.get_absolute_url())
