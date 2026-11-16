@@ -33,7 +33,9 @@ runs live. What that changes, ahead of everything else in this file:
 - **Nothing here deploys.** There is no server, no `publish`, no `take_in`, no
   `deploy status`. Ignore whatever the rest of this file or the docs say about the live
   site, the server, `deploy/`, `edge/`, the educator kit and the owner's bot (BMO):
-  those belong to the original repository. Links to `docs/DEPLOYMENT.md` and
+  those belong to the original repository. There is no CI either: the original's GitHub Actions
+  workflow (`.github/`) was removed from this copy, so a push runs nothing. Run the tests and
+  `ruff` locally. Links to `docs/DEPLOYMENT.md` and
   `docs/DUTIES.md` lead nowhere here; those pages were left out.
 - **The content is part of this repository.** `courses/semester-N/<course>/` holds each
   course's `course.yaml` and `content/`, and is committed here like the code. (In the
